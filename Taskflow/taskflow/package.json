@@ -1,0 +1,69 @@
+{
+  "name": "taskflow",
+  "version": "1.2.0",
+  "description": "Suite de widgets de gestion de projet pour Grist",
+  "authors": [
+    {
+      "name": "nic01asfr",
+      "url": "https://github.com/nic01asfr"
+    }
+  ],
+  "grist": [
+    {
+      "widgetId": "taskflow",
+      "name": "TaskFlow — Suite complète",
+      "url": "",
+      "accessLevel": "full",
+      "description": "Suite tout-en-un : Dashboard, Kanban, Gantt, Calendar, Plan, Feuille de temps, Organigramme, Whiteboard dans un seul widget"
+    },
+    {
+      "widgetId": "taskflow-kanban",
+      "name": "TaskFlow Kanban",
+      "url": "kanban/",
+      "accessLevel": "full",
+      "description": "Tableau Kanban avec drag & drop pour la gestion de tâches"
+    },
+    {
+      "widgetId": "taskflow-gantt",
+      "name": "TaskFlow Gantt",
+      "url": "gantt/",
+      "accessLevel": "full",
+      "description": "Diagramme de Gantt interactif pour la planification"
+    },
+    {
+      "widgetId": "taskflow-calendar",
+      "name": "TaskFlow Calendar",
+      "url": "calendar/",
+      "accessLevel": "full",
+      "description": "Calendrier interactif avec vue mois/semaine/jour"
+    },
+    {
+      "widgetId": "taskflow-dashboard",
+      "name": "TaskFlow Dashboard",
+      "url": "dashboard/",
+      "accessLevel": "full",
+      "description": "Tableau de bord avec KPIs et statistiques des tâches"
+    },
+    {
+      "widgetId": "taskflow-plan",
+      "name": "TaskFlow Plan",
+      "url": "plan/",
+      "accessLevel": "full",
+      "description": "Plan de charge : capacité/charge par personne, prévu/réalisé/reste/dispo, disponibilités"
+    },
+    {
+      "widgetId": "taskflow-cra",
+      "name": "TaskFlow Feuille de temps",
+      "url": "cra/",
+      "accessLevel": "full",
+      "description": "Saisie hebdomadaire du temps passé par tâche, avec validation par le chef"
+    },
+    {
+      "widgetId": "taskflow-orgchart",
+      "name": "TaskFlow Organigramme",
+      "url": "orgchart/",
+      "accessLevel": "full",
+      "description": "Annuaire et organigramme des entités, avec droits d'accès dérivés de la hiérarchie"
+    }
+  ]
+}
