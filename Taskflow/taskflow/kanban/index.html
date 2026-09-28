@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban - TaskFlow V1 validée</title>
+    <title>Kanban - TaskFlow v15</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -27,7 +27,7 @@
             /* v2 extras */
             --p-50:#eef2ff; --p-100:#dfe5ff; --surface-2:#eef2f7; --radius:11px; --warn-ink:#b9740f;
             /* Layout */
-            --panel-width: min(50vw, 800px);
+            --panel-width: 400px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
@@ -96,7 +96,7 @@
         .tf-skel-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: var(--shadow); }
 
         /* Cards */
-        .task-card { background: var(--card-bg); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; border-left: 4px solid var(--info); box-shadow: var(--shadow); transition: all 0.15s; }
+        .task-card { background: var(--card-bg); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; border-left: 16px solid var(--info); box-shadow: var(--shadow); transition: all 0.15s; }
         .task-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; }
         .task-card.selected { outline: 2px solid var(--primary); outline-offset: 1px; }
         .task-card.p1 { border-left-color: var(--danger); }
@@ -154,6 +154,26 @@
         .panel-section-icon { font-size: 0.85rem; opacity: 0.7; }
         .panel-section-title { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .panel-section-badge { font-size: 0.65rem; padding: 2px 6px; background: var(--primary-light); color: var(--primary); border-radius: 10px; font-weight: 600; margin-left: auto; }
+
+        /* WBS sous-tâches : dates directement éditables */
+        .wbs-subtask-list { display:flex; flex-direction:column; gap:6px; }
+        .wbs-subtask-row { display:grid; grid-template-columns:5px minmax(120px,1fr) auto auto; align-items:center; gap:8px; padding:7px 8px; background:var(--bg); border:1px solid var(--border); border-radius:7px; }
+        .wbs-color-strip { width:5px; height:24px; border-radius:3px; }
+        .wbs-subtask-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:0; background:transparent; color:var(--text); text-align:left; padding:3px 0; cursor:pointer; font:inherit; font-size:.82rem; }
+        .wbs-subtask-name:hover { color:var(--primary); text-decoration:underline; }
+        .wbs-subtask-dates { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+        .wbs-subtask-dates input { width:118px; padding:5px 6px; border:1px solid var(--border); border-radius:6px; background:var(--card-bg); color:var(--text); font-size:.7rem; }
+        .wbs-subtask-dates input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light); }
+        .wbs-add-btn { width:auto; padding:7px 12px; font-size:.78rem; margin-top:8px; }
+        .inline-subtask-form { margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
+        .inline-subtask-title { font-size:.78rem; font-weight:600; margin-bottom:8px; }
+        .inline-subtask-form .form-input { box-sizing:border-box; background:var(--card-bg); }
+        .inline-subtask-dates { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+        .inline-subtask-dates label { display:flex; flex-direction:column; gap:4px; font-size:.68rem; font-weight:600; color:var(--text-muted); }
+        .inline-subtask-dates input { width:100%; box-sizing:border-box; padding:7px 6px; border:1px solid var(--border); border-radius:6px; background:var(--card-bg); color:var(--text); font-size:.72rem; }
+        .inline-subtask-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:9px; }
+        .inline-subtask-actions .panel-btn { width:auto; padding:7px 12px; font-size:.76rem; }
+        .inline-subtask-actions .inline-cancel { background:transparent; color:var(--text-muted); border:1px solid var(--border); }
 
         /* Form */
         .type-selector { display: flex; gap: 6px; margin-bottom: 16px; background: var(--bg); padding: 4px; border-radius: 8px; }
@@ -1556,6 +1576,78 @@
             render();
             setTimeout(() => document.getElementById('taskTitle')?.focus(), 100);
         }
+        function toggleInlineSubtaskForm() {
+            const form = document.getElementById('inlineSubtaskForm');
+            if (!form) return;
+            const opening = form.style.display === 'none' || !form.style.display;
+            form.style.display = opening ? 'block' : 'none';
+            if (opening) {
+                const p = panelState.editData || {};
+                const start = p.dateDebut ? formatDateInput(gristToDate(p.dateDebut)) : '';
+                const end = p.dateEcheance ? formatDateInput(gristToDate(p.dateEcheance)) : '';
+                const s = document.getElementById('inlineSubtaskStart');
+                const e = document.getElementById('inlineSubtaskEnd');
+                if (s) s.value = start;
+                if (e) e.value = end;
+                setTimeout(() => document.getElementById('inlineSubtaskName')?.focus(), 50);
+            }
+        }
+        function cancelInlineSubtask() {
+            const form = document.getElementById('inlineSubtaskForm');
+            if (form) form.style.display = 'none';
+            const n = document.getElementById('inlineSubtaskName');
+            if (n) n.value = '';
+        }
+        async function addInlineSubtask() {
+            if (!gristReady || panelState.isNew || !panelState.taskId) { showToast('La sous-tâche doit être créée depuis une tâche existante dans Grist', 'error'); return; }
+            const parent = tasks.find(t => t.id === panelState.taskId);
+            const name = (document.getElementById('inlineSubtaskName')?.value || '').trim();
+            const start = document.getElementById('inlineSubtaskStart')?.value || '';
+            const end = document.getElementById('inlineSubtaskEnd')?.value || '';
+            if (!name) { showToast('Nom de la sous-tâche requis', 'error'); return; }
+            if (start && end && start > end) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
+            const record = {
+                titre: name, description: '', type: 'tache', priorite: parent?.priorite || '3', statut: parent?.statut || 'todo', progression: 0,
+                dateDebut: start ? dateToGrist(parseInputDate(start)) : null,
+                dateEcheance: end ? dateToGrist(parseInputDate(end)) : null,
+                projet: parent?.projet || null, assignees: null, dependDe: null, tags: null, estimationH: null, tempsPasse: null,
+                subtasks: null, couleur: null, parentTask: panelState.taskId, charges: null, dateCloture: null
+            };
+            try {
+                await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, pruneTaskRecord(record)]]);
+                showToast('Sous-tâche ajoutée', 'success');
+                await loadAllData();
+                const refreshed = tasks.find(t => t.id === panelState.taskId);
+                if (refreshed) panelState.editData = cloneTaskData(refreshed);
+                renderPanelTask();
+                render();
+            } catch (e) {
+                console.error(e);
+                showToast('Erreur création sous-tâche', 'error');
+            }
+        }
+        async function updateChildDate(taskId, field, value) {
+            const child = tasks.find(t => t.id === taskId);
+            if (!child) return;
+            const other = field === 'dateDebut' ? child.dateEcheance : child.dateDebut;
+            const parsed = value ? parseInputDate(value) : null;
+            const otherDate = other ? gristToDate(other) : null;
+            if (parsed && otherDate && field === 'dateDebut' && parsed > otherDate) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); renderPanelTask(); return; }
+            if (parsed && otherDate && field === 'dateEcheance' && parsed < otherDate) { showToast('La date de fin ne peut pas précéder la date de début', 'error'); renderPanelTask(); return; }
+            const gristValue = parsed ? dateToGrist(parsed) : null;
+            try {
+                await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, { [field]: gristValue }]]);
+                child[field] = gristValue;
+                showSaveIndicator();
+                renderPanelTask();
+                render();
+            } catch (e) {
+                console.error(e);
+                showToast('Erreur mise à jour de la date', 'error');
+                renderPanelTask();
+            }
+        }
+
         // WBS-03: création d'une sous-tâche
         function openCreateTaskWithParent(parentId) {
             const today = new Date();
@@ -1719,9 +1811,7 @@
                     </div>
                     <div class="prop-row">
                         <span class="prop-label">Couleur</span>
-                        <div class="prop-value">
-                            <input class="task-color-input" type="color" value="${data.couleur || getTaskColor(data)}" title="Modifier la couleur de la tâche" onchange="updateField('couleur', this.value)">
-                        </div>
+                        <div class="prop-value"><input type="color" aria-label="Modifier la couleur" title="Modifier la couleur" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:transparent"></div>
                     </div>
                     ${(!panelState.isNew || data.parentTask) ? `
                     <div class="prop-row">
@@ -1768,42 +1858,41 @@
                     <div class="form-group"><textarea class="form-textarea" placeholder="${descLabel}..." oninput="updateField('description', this.value, true)">${escapeHtml(data.description)}</textarea></div>
                 </div>
 
-                <!-- V1 : Sous-tâches réelles de Tasks, liées par parentTask -->
+                <!-- WBS-03: Sous-tâches (hiérarchie) — vraies tâches avec parentTask -->
                 ${!panelState.isNew ? (function() {
                     const kids = getChildren(panelState.taskId);
                     const _par = data.parentTask ? tasks.find(x => x.id === data.parentTask) : null;
                     const parentLink = _par ? '<div class="prereq-item" onclick="openTaskPanel(' + _par.id + ')" title="Ouvrir la tâche parent"><span style="flex-shrink:0;font-weight:700;color:var(--primary)">↑</span><span class="prereq-item-title">Parent : ' + escapeHtml(_par.titre) + '</span></div>' : '';
                     const kidsList = kids.map(k => {
                         const kp = getPriority(k);
-                        const ks = gristToDate(k.dateDebut);
-                        const ke = gristToDate(k.dateEcheance);
-                        const startValue = formatDateInput(ks);
-                        const endValue = formatDateInput(ke);
-                        return `<div class="tf-subtask-row" onclick="openTaskPanel(${k.id})">
-                            <span class="tf-subtask-arrow">↳</span>
-                            <span class="tf-subtask-color" style="background:${PRIORITY_COLORS[kp]}"></span>
-                            <span class="tf-subtask-title" title="Ouvrir la sous-tâche">${escapeHtml(k.titre || 'Sans titre')}</span>
-                            <div class="tf-subtask-dates" onclick="event.stopPropagation()">
-                                <input type="date" value="${startValue}" title="Date de début" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
+                        const kprog = hasChildren(k) ? aggregateProgress(k) : (k.progression || 0);
+                        const ks = gristToDate(k.dateDebut), ke = gristToDate(k.dateEcheance);
+                        return `<div class="wbs-subtask-row">
+                            <span class="wbs-color-strip" style="background:${PRIORITY_COLORS[kp]}"></span>
+                            <button class="wbs-subtask-name" onclick="openTaskPanel(${k.id})" title="Ouvrir la sous-tâche">↳ ${escapeHtml(k.titre)}</button>
+                            <div class="wbs-subtask-dates">
+                                <input type="date" value="${formatDateInput(ks)}" aria-label="Date de début" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
                                 <span>→</span>
-                                <input type="date" value="${endValue}" title="Date de fin" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
+                                <input type="date" value="${formatDateInput(ke)}" aria-label="Date de fin" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
                             </div>
+                            <span class="prereq-badge ${k.statut || 'todo'}">${kprog}%</span>
                         </div>`;
                     }).join('');
-                    return `<div class="panel-section tf-subtasks-section">
+                    return `<div class="panel-section">
                         <div class="panel-section-header"><span class="panel-section-title">Sous-tâches</span>${kids.length ? `<span class="panel-section-badge">${kids.length}</span>` : ''}</div>
                         ${parentLink}
-                        ${kids.length ? `<div class="tf-subtask-list">${kidsList}</div>` : `<div class="prereq-empty">Aucune sous-tâche.</div>`}
-                        <button class="tf-add-subtask-btn" type="button" onclick="openInlineSubtaskForm()">+ Ajouter une sous-tâche</button>
-                        <div id="inlineSubtaskForm" class="tf-inline-subtask-form" style="display:none">
-                            <div class="tf-inline-field"><label for="inlineSubtaskTitle">Nom de la sous-tâche</label><input id="inlineSubtaskTitle" type="text" placeholder="Nom de la sous-tâche..." oninput="toggleInlineSubtaskSubmit()" onkeydown="if(event.key==='Enter'){event.preventDefault();createInlineSubtask();}"></div>
-                            <div class="tf-inline-date-grid">
-                                <div class="tf-inline-field"><label for="inlineSubtaskStart">Date de début</label><input id="inlineSubtaskStart" type="date" value="${formatDateInput(s)}"></div>
-                                <div class="tf-inline-field"><label for="inlineSubtaskEnd">Date de fin</label><input id="inlineSubtaskEnd" type="date" value="${formatDateInput(e)}"></div>
+                        ${kids.length ? `<div class="wbs-subtask-list">${kidsList}</div>` : `<div class="prereq-empty">Aucune sous-tâche.</div>`}
+                        <button class="panel-btn wbs-add-btn" type="button" onclick="toggleInlineSubtaskForm()">+ Ajouter une sous-tâche</button>
+                        <div id="inlineSubtaskForm" class="inline-subtask-form" style="display:none">
+                            <div class="inline-subtask-title">Nouvelle sous-tâche</div>
+                            <input id="inlineSubtaskName" class="form-input" type="text" placeholder="Nom de la sous-tâche">
+                            <div class="inline-subtask-dates">
+                                <label>Date de début<input id="inlineSubtaskStart" type="date"></label>
+                                <label>Date de fin<input id="inlineSubtaskEnd" type="date"></label>
                             </div>
-                            <div class="tf-inline-actions">
-                                <button class="btn" type="button" onclick="cancelInlineSubtaskForm()">Annuler</button>
-                                <button class="btn primary" id="inlineSubtaskSubmit" type="button" onclick="createInlineSubtask()" disabled>Ajouter</button>
+                            <div class="inline-subtask-actions">
+                                <button class="panel-btn inline-cancel" type="button" onclick="cancelInlineSubtask()">Annuler</button>
+                                <button class="panel-btn success" type="button" onclick="addInlineSubtask()">Ajouter</button>
                             </div>
                         </div>
                     </div>`;
@@ -2016,108 +2105,6 @@
         }
         function handleSubtaskKeydown(e) {
             if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
-        }
-
-        // V1 : création inline d'une sous-tâche réelle dans Tasks.
-        function openInlineSubtaskForm() {
-            const form = document.getElementById('inlineSubtaskForm');
-            if (!form) return;
-            form.style.display = 'block';
-            toggleInlineSubtaskSubmit();
-            setTimeout(() => document.getElementById('inlineSubtaskTitle')?.focus(), 50);
-        }
-
-        function cancelInlineSubtaskForm() {
-            const form = document.getElementById('inlineSubtaskForm');
-            if (form) form.style.display = 'none';
-        }
-
-        function toggleInlineSubtaskSubmit() {
-            const input = document.getElementById('inlineSubtaskTitle');
-            const button = document.getElementById('inlineSubtaskSubmit');
-            if (button) button.disabled = !(input?.value || '').trim();
-        }
-
-        async function createInlineSubtask() {
-            const parentId = panelState.taskId;
-            const titleEl = document.getElementById('inlineSubtaskTitle');
-            const startEl = document.getElementById('inlineSubtaskStart');
-            const endEl = document.getElementById('inlineSubtaskEnd');
-            const title = (titleEl?.value || '').trim();
-            if (!parentId || !title) return;
-
-            const parent = tasks.find(t => t.id === parentId);
-            const start = startEl?.value ? dateToGrist(parseInputDate(startEl.value)) : null;
-            const end = endEl?.value ? dateToGrist(parseInputDate(endEl.value)) : null;
-            if (start && end && start > end) {
-                showToast('La date de début ne peut pas dépasser la date de fin', 'error');
-                return;
-            }
-
-            const record = pruneTaskRecord({
-                titre: title,
-                description: '',
-                type: 'tache',
-                priorite: parent?.priorite || '3',
-                statut: 'todo',
-                progression: 0,
-                dateDebut: start,
-                dateEcheance: end,
-                projet: parent?.projet || null,
-                assignees: [],
-                dependDe: [],
-                tags: [],
-                estimationH: null,
-                tempsPasse: null,
-                subtasks: null,
-                couleur: null,
-                parentTask: parentId,
-                charges: null,
-                dateCloture: null
-            });
-
-            if (!gristReady) {
-                showToast('Grist indisponible', 'error');
-                return;
-            }
-
-            try {
-                await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, record]]);
-                showToast('Sous-tâche ajoutée', 'success');
-                await loadAllData();
-                panelState.editData = cloneTaskData(tasks.find(t => t.id === parentId) || parent || panelState.editData);
-                panelState.isNew = false;
-                panelState.taskId = parentId;
-                renderPanelTask();
-                render();
-            } catch (e) {
-                console.error('Inline subtask creation error:', e);
-                showToast('Erreur création sous-tâche', 'error');
-            }
-        }
-
-        async function updateChildDate(childId, field, value) {
-            if (field !== 'dateDebut' && field !== 'dateEcheance') return;
-            const child = tasks.find(t => t.id === childId);
-            if (!child) return;
-            const parsed = value ? dateToGrist(parseInputDate(value)) : null;
-            const nextStart = field === 'dateDebut' ? parsed : child.dateDebut;
-            const nextEnd = field === 'dateEcheance' ? parsed : child.dateEcheance;
-            if (nextStart && nextEnd && nextStart > nextEnd) {
-                showToast('La date de début ne peut pas dépasser la date de fin', 'error');
-                renderPanelTask();
-                return;
-            }
-            child[field] = parsed;
-            if (!gristReady) { renderPanelTask(); render(); return; }
-            try {
-                await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', childId, { [field]: parsed }]]);
-                showSaveIndicator();
-                renderPanelTask();
-                render();
-            } catch (e) {
-                showToast('Erreur mise à jour date', 'error');
-            }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -2333,36 +2320,6 @@
   .main-content, .kanban-container, .grid-container, .main, .gantt-wrapper { padding-bottom: 70px !important; }
   .panel.open { padding-bottom: 62px; }
 }
-
-        /* ═══════════════════════════════════════════════════════════════════════
-           V1 VALIDÉE — ergonomie Kanban
-           ═══════════════════════════════════════════════════════════════════════ */
-        :root { --panel-width: min(50vw, 800px); }
-        .panel { width: var(--panel-width); min-width: 450px; max-width: 800px; }
-        .task-card { border-left-width: 12px !important; }
-        .task-color-input { width: 32px; height: 32px; padding: 2px; border: 1px solid var(--border-dark); border-radius: 7px; cursor: pointer; background: var(--card-bg); }
-        .task-color-input:hover { border-color: var(--primary); }
-        .form-textarea { min-height: 150px; width: 100%; }
-        .tf-subtask-list { display: flex; flex-direction: column; gap: 7px; }
-        .tf-subtask-row { display: grid; grid-template-columns: 18px 5px minmax(120px,1fr) auto; align-items: center; gap: 7px; padding: 9px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
-        .tf-subtask-row:hover { background: var(--card-bg); border-color: var(--border-dark); }
-        .tf-subtask-arrow { color: var(--text-muted); font-weight: 700; font-size: 0.9rem; }
-        .tf-subtask-color { width: 5px; height: 18px; border-radius: 3px; }
-        .tf-subtask-title { min-width: 0; font-size: 0.8rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .tf-subtask-dates { display: flex; align-items: center; gap: 4px; color: var(--text-light); font-size: 0.7rem; }
-        .tf-subtask-dates input { width: 112px; min-width: 0; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text); font-size: 0.68rem; }
-        .tf-subtask-dates input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
-        .tf-add-subtask-btn { margin-top: 8px; padding: 8px 11px; border: 1px dashed var(--border-dark); border-radius: 7px; background: transparent; color: var(--primary); font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-        .tf-add-subtask-btn:hover { background: var(--primary-light); border-color: var(--primary); }
-        .tf-inline-subtask-form { margin-top: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
-        .tf-inline-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 9px; }
-        .tf-inline-field label { font-size: 0.68rem; font-weight: 650; color: var(--text-muted); }
-        .tf-inline-field input { width: 100%; padding: 8px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--card-bg); color: var(--text); font-size: 0.78rem; }
-        .tf-inline-field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
-        .tf-inline-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .tf-inline-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 3px; }
-        .tf-inline-actions .btn { padding: 7px 11px; font-size: 0.75rem; }
-        @media (max-width: 900px) { :root { --panel-width: 100%; } .panel { min-width: 0; max-width: none; } .tf-subtask-row { grid-template-columns: 18px 5px minmax(90px,1fr); } .tf-subtask-dates { grid-column: 3; } }
 </style>
 <nav class="mobile-tabbar">
   <a href="kanban.html" class="mt-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="14" rx="1"/></svg>Kanban</a>
