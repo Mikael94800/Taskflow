@@ -27,7 +27,7 @@
             /* v2 extras */
             --p-50:#eef2ff; --p-100:#dfe5ff; --surface-2:#eef2f7; --radius:11px; --warn-ink:#b9740f;
             /* Layout */
-            --panel-width: 400px;
+            --panel-width: min(50vw, 850px); --panel-min-width: 450px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
@@ -127,7 +127,7 @@
         .card-avatar.more { background: var(--text-muted); }
 
         /* Panel */
-        .panel { position: absolute; top: 0; right: 0; width: var(--panel-width); height: 100%; background: var(--card-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; z-index: 50; }
+        .panel { position: absolute; top: 0; right: 0; width: var(--panel-width); min-width: var(--panel-min-width); height: 100%; background: var(--card-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; z-index: 50; }
         .panel.open { transform: translateX(0); }
         .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg); gap: 8px; }
         .panel-nav { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
@@ -168,6 +168,7 @@
         .form-input.title-input { font-size: 1rem; font-weight: 600; border: none; padding: 8px 0; background: transparent; border-bottom: 2px solid var(--border); border-radius: 0; }
         .form-input.title-input:focus { border-bottom-color: var(--primary); box-shadow: none; }
         .form-textarea { min-height: 70px; resize: vertical; font-size: 0.8rem; }
+        .panel-description { min-height: 150px; width: 100%; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .priority-selector { display: flex; gap: 6px; }
         .priority-pill { flex: 1; padding: 8px 4px; border: 2px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; font-size: 0.7rem; font-weight: 600; background: var(--card-bg); }
@@ -206,6 +207,35 @@
         .subtask-add button { padding: 8px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .subtask-add button:hover { background: var(--primary-dark); }
         .subtask-progress { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* V1 ergonomie : dates éditables des sous-tâches hiérarchiques */
+        .hierarchy-subtask-row { cursor: pointer; }
+        .hierarchy-subtask-row .subtask-dates {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            flex: 0 0 auto;
+        }
+        .hierarchy-subtask-row .subtask-date {
+            width: 112px;
+            padding: 4px 6px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 0.68rem;
+        }
+        .hierarchy-subtask-row .subtask-date:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+        .hierarchy-subtask-row .subtask-date-sep {
+            color: var(--text-light);
+            font-size: 0.68rem;
+        }
+        .hierarchy-add-btn { width: auto; margin-top: 8px; }
+
         .progress-preset { flex: 1; padding: 6px 4px; font-size: 0.7rem; font-weight: 600; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); cursor: pointer; transition: all 0.15s; text-align: center; }
         .progress-preset:hover { background: var(--primary-light); border-color: var(--primary); }
         .progress-preset.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -243,6 +273,27 @@
         .tag-chip .remove { cursor: pointer; color: var(--text-muted); }
         .tag-chip .remove:hover { color: var(--danger); }
         .tags-input input { border: none; outline: none; flex: 1; min-width: 60px; font-size: 0.8rem; padding: 3px 0; background: transparent; }
+
+
+        /* V1 ergonomie : la couleur de tâche est un simple carré cliquable */
+        .task-color-only {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            border: 1px solid var(--border-dark);
+            cursor: pointer;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,.65), 0 1px 3px rgba(16,24,40,.12);
+            padding: 0;
+        }
+        .task-color-only:hover { transform: scale(1.06); }
+        .task-color-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
 
         /* Project select with dot */
         .project-select-wrap { display: flex; align-items: center; gap: 8px; }
@@ -301,7 +352,7 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 3px; }
-        @media (max-width: 900px) { :root { --panel-width: 360px; } .kanban-column { min-width: 250px; } }
+        @media (max-width: 900px) { :root { --panel-width: 50vw; } .kanban-column { min-width: 250px; } }
         @media (max-width: 700px) { :root { --panel-width: 100%; } .kanban-container.panel-open { margin-right: 0; } .panel { left: 0; width: 100%; } }
         
         /* GEN-03: Export Print/PDF */
@@ -376,7 +427,7 @@
         .column-title { font-weight: 650; }
         .column-count { background: var(--surface-2); border-radius: 999px; }
         /* Cartes — structurées (A) */
-        .task-card { border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius); padding: 13px 14px; box-shadow: var(--shadow); }
+        .task-card { border: 1px solid var(--border); border-top: 8px solid var(--task-accent, var(--info)); border-radius: var(--radius); padding: 10px 14px 13px; box-shadow: var(--shadow); }
         .task-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px -4px rgba(16,24,40,.13), 0 2px 6px -2px rgba(16,24,40,.07); border-color: var(--border-dark); }
         .card-title { font-weight: 600; font-size: 0.86rem; letter-spacing: -0.01em; }
         .card-meta { gap: 7px; margin-top: 9px; }
@@ -1443,7 +1494,7 @@
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
-            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="openTaskPanel(${t.id})">
+            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="--task-accent:${barColor}" onclick="openTaskPanel(${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
@@ -1717,14 +1768,12 @@
                             <select class="form-select" onchange="updateField('projet', parseInt(this.value) || null)"><option value="">Aucun projet</option>${projectOptions}</select>
                         </div></div>
                     </div>
-                    <div class="prop-row">
-                        <span class="prop-label">Couleur</span>
-                        <div class="prop-value"><div style="display:flex;gap:8px;align-items:center">
-                            <input type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" style="width:36px;height:28px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px">
-                            ${data.couleur
-                                ? `<button class="btn" style="padding:4px 10px;font-size:0.72rem" onclick="updateField('couleur', null)">Réinitialiser</button>`
-                                : `<span style="font-size:0.72rem;color:var(--text-muted)">Héritée du mode « ${colorMode} »</span>`}
-                        </div></div>
+                    <div class="prop-row prop-row-color">
+                        <div class="prop-value">
+                            <label class="task-color-only" title="Modifier la couleur" style="background:${data.couleur || getTaskColor(data)}">
+                                <input class="task-color-input" type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)">
+                            </label>
+                        </div>
                     </div>
                     ${(!panelState.isNew || data.parentTask) ? `
                     <div class="prop-row">
@@ -1745,18 +1794,6 @@
                             <div class="multi-select" id="assigneesSelect"><button class="addbtn" onclick="toggleMultiSelect('assigneesSelect')"><span style="font-size:1rem;line-height:1">+</span> ${data.type === 'reunion' ? 'Ajouter un participant' : 'Assigner un membre'}</button><div class="multi-select-dropdown">${assigneesOptions || '<div class="multi-select-empty">Aucun membre</div>'}</div></div>
                         </div>
                     </div>
-                    ${data.type === 'tache' ? `
-                    <div class="prop-row">
-                        <span class="prop-label">Temps &amp; charge</span>
-                        <div class="prop-value">
-                            <div class="tc-grid">
-                                <div class="tc-box"><div class="tcl">Estimé</div><div class="tcv"><input type="number" min="0" step="0.5" value="${estim || ''}" placeholder="0" onchange="updateField('estimationH', parseFloat(this.value) || null)"><small>h</small></div></div>
-                                <div class="tc-box"><div class="tcl">Passé${CRA_ACTIVE ? ' <span style="font-weight:400;opacity:.6">(Feuille de temps)</span>' : ''}</div><div class="tcv"><input type="number" min="0" step="0.5" value="${passe || ''}" placeholder="0" ${CRA_ACTIVE ? 'readonly title="Saisi via la Feuille de temps"' : ''} onchange="updateField('tempsPasse', parseFloat(this.value) || null)"><small>h</small></div></div>
-                            </div>
-                            ${estim > 0 ? `<div class="tc-bar"><i class="${timeOver ? 'over' : ''}" style="width:${timePercent}%"></i></div><div class="tc-foot"><span>${Math.round((passe/estim)*100)}% consommé</span><span>reste ${Math.max(estim-passe,0)} h</span></div>` : ''}
-                            ${(data.assignees.length && TASK_COLS.has('charges')) ? `<div style="margin-top:13px"><div class="prop-label" style="margin-bottom:6px">Charge par personne</div>${data.assignees.map(id => `<div class="charge-row"><span class="an">${escapeHtml(getTeamMemberName(id))}</span><input type="number" min="0" step="0.5" value="${chargeOf(id)}" onchange="updateCharge(${id}, this.value)"><span style="font-size:0.75rem;color:var(--text-muted)">h</span></div>`).join('')}<div style="margin-top:6px;font-size:0.78rem;color:var(--text-muted)">Total : <strong>${chargeTotalH}</strong> h</div></div>` : ''}${chargeConsolHtml}
-                        </div>
-                    </div>` : ''}
                     ${data.type === 'tache' ? `
                     <div class="prop-row pr-prog">
                         <span class="prop-label">Progression</span>
@@ -1780,7 +1817,7 @@
                 <!-- Description / Ordre du jour / Critères -->
                 <div class="panel-section">
                     <div class="panel-section-header"><span class="panel-section-title">${descLabel}</span></div>
-                    <div class="form-group"><textarea class="form-textarea" placeholder="${descLabel}..." oninput="updateField('description', this.value, true)">${escapeHtml(data.description)}</textarea></div>
+                    <div class="form-group"><textarea class="form-textarea panel-description" placeholder="${descLabel}..." oninput="updateField('description', this.value, true)">${escapeHtml(data.description)}</textarea></div>
                 </div>
 
                 <!-- WBS-03: Sous-tâches (hiérarchie) — vraies tâches avec parentTask -->
@@ -1791,9 +1828,17 @@
                     const kidsList = kids.map(k => {
                         const kp = getPriority(k);
                         const kprog = hasChildren(k) ? aggregateProgress(k) : (k.progression || 0);
-                        return `<div class="prereq-item" onclick="openTaskPanel(${k.id})">
-                            <span class="card-project" style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${PRIORITY_COLORS[kp]}"></span>
+                        const ks = gristToDate(k.dateDebut), ke = gristToDate(k.dateEcheance);
+                        const kstart = formatDateInput(ks);
+                        const kend = formatDateInput(ke);
+                        return `<div class="prereq-item hierarchy-subtask-row" onclick="openTaskPanel(${k.id})">
+                            <span class="card-project" style="width:4px;height:20px;border-radius:2px;flex-shrink:0;background:${PRIORITY_COLORS[kp]}"></span>
                             <span class="prereq-item-title">${escapeHtml(k.titre)}</span>
+                            <span class="subtask-dates" onclick="event.stopPropagation()">
+                                <input class="subtask-date" type="date" value="${kstart}" aria-label="Date de début" onchange="updateChildTaskDate(${k.id}, 'dateDebut', this.value)">
+                                <span class="subtask-date-sep">→</span>
+                                <input class="subtask-date" type="date" value="${kend}" aria-label="Date de fin" onchange="updateChildTaskDate(${k.id}, 'dateEcheance', this.value)">
+                            </span>
                             <span class="prereq-badge ${k.statut || 'todo'}">${kprog}%</span>
                         </div>`;
                     }).join('');
@@ -1801,7 +1846,7 @@
                         <div class="panel-section-header"><span class="panel-section-title">Sous-tâches (hiérarchie)</span>${kids.length ? `<span class="panel-section-badge">${kids.length}</span>` : ''}</div>
                         ${parentLink}
                         ${kids.length ? `<div class="prereq-list">${kidsList}</div>` : `<div class="prereq-empty">Aucune sous-tâche. Décomposez cette tâche en étapes planifiables.</div>`}
-                        <button class="panel-btn" style="width:auto;padding:6px 12px;font-size:0.78rem;margin-top:6px" onclick="openCreateTaskWithParent(${panelState.taskId})">+ Sous-tâche</button>
+                        <button class="panel-btn hierarchy-add-btn" style="padding:7px 12px;font-size:0.78rem" onclick="openCreateTaskWithParent(${panelState.taskId})">+ Ajouter une sous-tâche</button>
                     </div>`;
                 })() : ''}
 
@@ -1941,6 +1986,46 @@
                     showSaveIndicator();
                 } catch (e) { showToast('Erreur mise à jour couleur', 'error'); }
             }
+            renderPanelTask();
+            render();
+        }
+
+        // V1 : mise à jour directe des dates d'une sous-tâche hiérarchique (ligne Tasks).
+        async function updateChildTaskDate(taskId, field, value) {
+            const child = tasks.find(t => t.id === taskId);
+            if (!child || (field !== 'dateDebut' && field !== 'dateEcheance')) return;
+            const parsed = value ? parseInputDate(value) : null;
+            const gristValue = parsed ? dateToGrist(parsed) : null;
+            const otherField = field === 'dateDebut' ? 'dateEcheance' : 'dateDebut';
+            const otherValue = child[otherField];
+
+            if (gristValue && otherValue &&
+                ((field === 'dateDebut' && gristValue > otherValue) ||
+                 (field === 'dateEcheance' && gristValue < otherValue))) {
+                showToast('La date de début ne peut pas dépasser la date de fin', 'error');
+                renderPanelTask();
+                return;
+            }
+
+            child[field] = gristValue;
+            if (panelState.editData && panelState.taskId === taskId) {
+                panelState.editData[field] = gristValue;
+            }
+
+            if (gristReady) {
+                try {
+                    await grist.docApi.applyUserActions([
+                        ['UpdateRecord', 'Tasks', taskId, { [field]: gristValue }]
+                    ]);
+                    showSaveIndicator();
+                } catch (e) {
+                    showToast('Erreur mise à jour de la date', 'error');
+                    await loadAllData();
+                    return;
+                }
+            }
+
+            rebuildChildrenCache();
             renderPanelTask();
             render();
         }
