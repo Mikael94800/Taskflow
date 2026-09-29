@@ -208,6 +208,23 @@
         .progress-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
         .progress-value { font-size: 0.85rem; font-weight: 600; color: var(--primary); min-width: 40px; text-align: right; }
         .progress-presets { display: flex; gap: 6px; margin-top: 8px; }
+        .wbs-subtask-row { grid-template-columns: 5px minmax(180px,1fr) minmax(260px,auto) auto !important; min-height:44px; }
+        .wbs-subtask-dates input { width:132px !important; height:30px; }
+        .wbs-add-btn { margin-top:10px; }
+        /* V3 - suppression definitive de tout bloc Temps & charge du panneau */
+        [data-section="time-load"],
+        .time-load-section,
+        .time-load-block,
+        .estimation-block,
+        .logged-time-block,
+        .workload-per-user,
+        .charge-section,
+        .charges-section,
+        .charge-block,
+        .charge-by-person,
+        .charge-row,
+        .charges-by-person { display:none !important; }
+
         /* FUT-01: Styles pour subtasks/checklist */
         .subtasks-section { margin-top: 12px; }
         .subtask-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
@@ -1928,6 +1945,20 @@
                 ? `<div style="display:flex;gap:8px;width:100%"><button class="panel-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border)" onclick="closePanel()">Annuler</button><button class="panel-btn success" onclick="createTask()" ${!data.titre?.trim() ? 'disabled' : ''} style="flex:1;width:auto">Créer la tâche</button></div>`
                 : `<div class="panel-footer-left"><button class="panel-btn danger" onclick="showDeleteConfirm()" style="width:auto;padding:10px 14px">Suppr.</button></div><div class="panel-footer-right"><div class="delete-confirm" id="deleteConfirm" style="display:none;position:fixed;bottom:60px;right:16px;background:#fef2f2;border:1px solid var(--danger);border-radius:8px;padding:10px;z-index:100"><span style="font-size:0.8rem;margin-right:8px">Supprimer ?</span><button class="panel-btn" style="width:auto;padding:6px 12px;font-size:0.75rem" onclick="hideDeleteConfirm()">Non</button><button class="panel-btn" style="width:auto;padding:6px 12px;font-size:0.75rem;background:var(--danger);margin-left:4px" onclick="confirmDelete()">Oui</button></div></div>`;
         }
+
+        // V3: sécurité d'affichage — aucune section Temps & charge ne doit rester visible.
+        function removeLegacyTimeLoadUi() {
+            const root = document.querySelector('.panel-content') || document;
+            root.querySelectorAll('[data-section="time-load"], .time-load-section, .time-load-block, .estimation-block, .logged-time-block, .workload-per-user, .charge-section, .charges-section, .charge-block, .charge-by-person, .charge-row, .charges-by-person').forEach(el => el.remove());
+            [...root.querySelectorAll('*')].forEach(el => {
+                if (el.children.length === 0 && /temps\s*&\s*charge|charge\s+par\s+personne/i.test(el.textContent || '')) el.remove();
+            });
+        }
+        const _tfOriginalRenderPanelTask = renderPanelTask;
+        renderPanelTask = function() {
+            _tfOriginalRenderPanelTask.apply(this, arguments);
+            removeLegacyTimeLoadUi();
+        };
 
         // ═══════════════════════════════════════════════════════════════════════
         // FIELD HANDLERS
