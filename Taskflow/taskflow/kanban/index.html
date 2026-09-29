@@ -27,7 +27,8 @@
             /* v2 extras */
             --p-50:#eef2ff; --p-100:#dfe5ff; --surface-2:#eef2f7; --radius:11px; --warn-ink:#b9740f;
             /* Layout */
-            --panel-width: 400px;
+            --panel-width: 520px;
+            --panel-width-grouped: 820px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
@@ -155,26 +156,6 @@
         .panel-section-title { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .panel-section-badge { font-size: 0.65rem; padding: 2px 6px; background: var(--primary-light); color: var(--primary); border-radius: 10px; font-weight: 600; margin-left: auto; }
 
-        /* WBS sous-tâches : dates directement éditables */
-        .wbs-subtask-list { display:flex; flex-direction:column; gap:6px; }
-        .wbs-subtask-row { display:grid; grid-template-columns:5px minmax(120px,1fr) auto auto; align-items:center; gap:8px; padding:7px 8px; background:var(--bg); border:1px solid var(--border); border-radius:7px; }
-        .wbs-color-strip { width:5px; height:24px; border-radius:3px; }
-        .wbs-subtask-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:0; background:transparent; color:var(--text); text-align:left; padding:3px 0; cursor:pointer; font:inherit; font-size:.82rem; }
-        .wbs-subtask-name:hover { color:var(--primary); text-decoration:underline; }
-        .wbs-subtask-dates { display:flex; align-items:center; gap:5px; white-space:nowrap; }
-        .wbs-subtask-dates input { width:118px; padding:5px 6px; border:1px solid var(--border); border-radius:6px; background:var(--card-bg); color:var(--text); font-size:.7rem; }
-        .wbs-subtask-dates input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light); }
-        .wbs-add-btn { width:auto; padding:7px 12px; font-size:.78rem; margin-top:8px; }
-        .inline-subtask-form { margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg); }
-        .inline-subtask-title { font-size:.78rem; font-weight:600; margin-bottom:8px; }
-        .inline-subtask-form .form-input { box-sizing:border-box; background:var(--card-bg); }
-        .inline-subtask-dates { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
-        .inline-subtask-dates label { display:flex; flex-direction:column; gap:4px; font-size:.68rem; font-weight:600; color:var(--text-muted); }
-        .inline-subtask-dates input { width:100%; box-sizing:border-box; padding:7px 6px; border:1px solid var(--border); border-radius:6px; background:var(--card-bg); color:var(--text); font-size:.72rem; }
-        .inline-subtask-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:9px; }
-        .inline-subtask-actions .panel-btn { width:auto; padding:7px 12px; font-size:.76rem; }
-        .inline-subtask-actions .inline-cancel { background:transparent; color:var(--text-muted); border:1px solid var(--border); }
-
         /* Form */
         .type-selector { display: flex; gap: 6px; margin-bottom: 16px; background: var(--bg); padding: 4px; border-radius: 8px; }
         .type-option { flex: 1; padding: 8px 6px; border: none; background: transparent; border-radius: 6px; text-align: center; cursor: pointer; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
@@ -204,27 +185,10 @@
         .status-pill:hover { border-color: var(--primary); }
         .status-pill.selected { background: var(--primary); color: white; border-color: var(--primary); }
         .progress-container { display: flex; align-items: center; gap: 10px; }
-        .progress-slider { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: var(--border); }
+        .progress-slider { flex: 1; -webkit-appearance: none; appearance: none; height: 7px; border-radius: 999px; background: linear-gradient(to right, var(--primary) 0 var(--progress-value, 0%), var(--surface-2) var(--progress-value, 0%) 100%); cursor: pointer; }
         .progress-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
         .progress-value { font-size: 0.85rem; font-weight: 600; color: var(--primary); min-width: 40px; text-align: right; }
         .progress-presets { display: flex; gap: 6px; margin-top: 8px; }
-        .wbs-subtask-row { grid-template-columns: 5px minmax(180px,1fr) minmax(260px,auto) auto !important; min-height:44px; }
-        .wbs-subtask-dates input { width:132px !important; height:30px; }
-        .wbs-add-btn { margin-top:10px; }
-        /* V3 - suppression definitive de tout bloc Temps & charge du panneau */
-        [data-section="time-load"],
-        .time-load-section,
-        .time-load-block,
-        .estimation-block,
-        .logged-time-block,
-        .workload-per-user,
-        .charge-section,
-        .charges-section,
-        .charge-block,
-        .charge-by-person,
-        .charge-row,
-        .charges-by-person { display:none !important; }
-
         /* FUT-01: Styles pour subtasks/checklist */
         .subtasks-section { margin-top: 12px; }
         .subtask-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
@@ -291,9 +255,12 @@
         .project-select-wrap .form-select { flex: 1; }
 
         /* Inline dates display */
-        .dates-inline { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
-        .dates-inline input { border: none; background: transparent; padding: 0; font-size: 0.85rem; color: var(--text); width: 110px; text-align: center; }
-        .dates-inline input:focus { outline: none; }
+        .dates-inline { display: flex; align-items: center; gap: 8px; padding: 7px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+        .dates-inline input { border: 1px solid var(--border-dark); background: var(--card-bg); padding: 7px 9px; font-size: 0.8rem; color: var(--text); width: 132px; text-align: left; border-radius: 8px; font-variant-numeric: tabular-nums; box-shadow: 0 1px 1px rgba(16,24,40,.03); color-scheme: light; }
+        .dates-inline input:hover { border-color: #b8c1cf; }
+        .dates-inline input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        .dates-inline .dates-arrow { color: var(--text-muted); font-size: 0.9rem; font-weight: 600; }
+        .dates-inline .today-btn { padding: 6px 9px; font-size: 0.7rem; background: var(--primary-light); color: var(--primary); border: 1px solid #d8e0ff; border-radius: 7px; cursor: pointer; margin-left: auto; transition: all 0.15s; font-weight: 600; }
         .dates-inline .dates-arrow { color: var(--text-muted); font-size: 0.85rem; }
         .dates-inline .today-btn { padding: 4px 8px; font-size: 0.7rem; background: var(--primary-light); color: var(--primary); border: none; border-radius: 4px; cursor: pointer; margin-left: auto; transition: all 0.15s; }
         .dates-inline .today-btn:hover { background: var(--primary); color: white; }
@@ -338,7 +305,7 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 3px; }
-        @media (max-width: 900px) { :root { --panel-width: 360px; } .kanban-column { min-width: 250px; } }
+        @media (max-width: 900px) { :root { --panel-width: 420px; --panel-width-grouped: 620px; } .kanban-column { min-width: 250px; } }
         @media (max-width: 700px) { :root { --panel-width: 100%; } .kanban-container.panel-open { margin-right: 0; } .panel { left: 0; width: 100%; } }
         
         /* GEN-03: Export Print/PDF */
@@ -375,7 +342,9 @@
         .prop-value .status-selector { display: flex; gap: 4px; flex-wrap: wrap; }
         .prop-value .status-pill { padding: 4px 8px; font-size: 0.68rem; }
         .prop-value .dates-inline { padding: 4px 6px; }
-        .prop-value .dates-inline input { width: 102px; font-size: 0.8rem; }
+        .prop-value .dates-inline input { width: 132px; font-size: 0.8rem; }
+        .tf-color-square { width:34px !important; height:34px !important; padding:3px !important; border:1px solid var(--border-dark) !important; border-radius:8px !important; cursor:pointer !important; background:var(--card-bg) !important; }
+        .tf-color-square:hover { transform:scale(1.04); box-shadow:0 2px 7px rgba(16,24,40,.12); }
         .progress-inline-wrap { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
         .progress-bar-mini { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
         .progress-bar-mini-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.2s; }
@@ -393,6 +362,23 @@
         .prereq-badge.review { background: var(--info-light); color: #1e40af; }
         .prereq-badge.done { background: var(--success-light); color: #065f46; }
         .prereq-empty { color: var(--text-muted); font-size: 0.8rem; padding: 8px 0; font-style: italic; }
+        /* V4 — sous-tâches lisibles et dates éditables */
+        .subtask-wbs-list { display:flex; flex-direction:column; gap:7px; }
+        .subtask-wbs-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:start; gap:8px; padding:8px 9px; background:var(--bg); border:1px solid var(--border); border-radius:8px; }
+        .subtask-wbs-title { min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35; font-size:.8rem; color:var(--text); padding-top:4px; }
+        .subtask-wbs-date { width:124px; min-width:124px; padding:6px 7px; border:1px solid var(--border-dark); border-radius:7px; background:var(--card-bg); color:var(--text); font-size:.72rem; font-variant-numeric:tabular-nums; }
+        .subtask-wbs-date:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+        .subtask-wbs-arrow { align-self:center; color:var(--text-muted); font-weight:600; }
+        .subtask-wbs-progress { grid-column:1/-1; font-size:.68rem; color:var(--text-muted); display:flex; justify-content:flex-end; }
+        .subtask-add-inline { margin-top:8px; }
+        .subtask-add-form { padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
+        .subtask-add-form .field-label { display:block; margin:0 0 4px; font-size:.68rem; color:var(--text-muted); font-weight:600; }
+        .subtask-add-form input[type=text], .subtask-add-form input[type=date] { width:100%; padding:8px 9px; border:1px solid var(--border-dark); border-radius:7px; background:var(--card-bg); font-size:.78rem; }
+        .subtask-add-form input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
+        .subtask-add-dates { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+        .subtask-add-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:9px; }
+        @media (max-width:900px) { .subtask-wbs-row { grid-template-columns:minmax(0,1fr) 118px; } .subtask-wbs-arrow { display:none; } .subtask-wbs-progress { grid-column:1/-1; } }
+
 
         /* ═════ TaskFlow v2 — couche d'harmonisation (visuel uniquement, JS intact) ═════ */
         body { -webkit-font-smoothing: antialiased; font-feature-settings: "cv05" 1, "ss01" 1; }
@@ -413,7 +399,7 @@
         .column-title { font-weight: 650; }
         .column-count { background: var(--surface-2); border-radius: 999px; }
         /* Cartes — structurées (A) */
-        .task-card { border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius); padding: 13px 14px; box-shadow: var(--shadow); }
+        .task-card { border: 1px solid var(--border); border-left-width: 12px; border-radius: var(--radius); padding: 13px 14px; box-shadow: var(--shadow); }
         .task-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px -4px rgba(16,24,40,.13), 0 2px 6px -2px rgba(16,24,40,.07); border-color: var(--border-dark); }
         .card-title { font-weight: 600; font-size: 0.86rem; letter-spacing: -0.01em; }
         .card-meta { gap: 7px; margin-top: 9px; }
@@ -1282,7 +1268,18 @@
         // ═══════════════════════════════════════════════════════════════════════
         // FILTERS
         // ═══════════════════════════════════════════════════════════════════════
-        function setGroupBy(g) { groupBy = g; document.querySelectorAll('.group-selector .btn').forEach(b => b.classList.remove('active')); document.getElementById('group' + g.charAt(0).toUpperCase() + g.slice(1)).classList.add('active'); render(); }
+        function setGroupBy(g) {
+            groupBy = g;
+            document.querySelectorAll('.group-selector .btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('group' + g.charAt(0).toUpperCase() + g.slice(1)).classList.add('active');
+            applyPanelWidth();
+            render();
+        }
+        function applyPanelWidth() {
+            const root = document.documentElement;
+            const wide = (groupBy === 'priorite' || groupBy === 'projet');
+            root.style.setProperty('--panel-width', wide ? '820px' : '520px');
+        }
         function changeColorMode(mode) {
             colorMode = mode;
             localStorage.setItem('taskflow_kanban_colormode', mode);
@@ -1593,78 +1590,6 @@
             render();
             setTimeout(() => document.getElementById('taskTitle')?.focus(), 100);
         }
-        function toggleInlineSubtaskForm() {
-            const form = document.getElementById('inlineSubtaskForm');
-            if (!form) return;
-            const opening = form.style.display === 'none' || !form.style.display;
-            form.style.display = opening ? 'block' : 'none';
-            if (opening) {
-                const p = panelState.editData || {};
-                const start = p.dateDebut ? formatDateInput(gristToDate(p.dateDebut)) : '';
-                const end = p.dateEcheance ? formatDateInput(gristToDate(p.dateEcheance)) : '';
-                const s = document.getElementById('inlineSubtaskStart');
-                const e = document.getElementById('inlineSubtaskEnd');
-                if (s) s.value = start;
-                if (e) e.value = end;
-                setTimeout(() => document.getElementById('inlineSubtaskName')?.focus(), 50);
-            }
-        }
-        function cancelInlineSubtask() {
-            const form = document.getElementById('inlineSubtaskForm');
-            if (form) form.style.display = 'none';
-            const n = document.getElementById('inlineSubtaskName');
-            if (n) n.value = '';
-        }
-        async function addInlineSubtask() {
-            if (!gristReady || panelState.isNew || !panelState.taskId) { showToast('La sous-tâche doit être créée depuis une tâche existante dans Grist', 'error'); return; }
-            const parent = tasks.find(t => t.id === panelState.taskId);
-            const name = (document.getElementById('inlineSubtaskName')?.value || '').trim();
-            const start = document.getElementById('inlineSubtaskStart')?.value || '';
-            const end = document.getElementById('inlineSubtaskEnd')?.value || '';
-            if (!name) { showToast('Nom de la sous-tâche requis', 'error'); return; }
-            if (start && end && start > end) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
-            const record = {
-                titre: name, description: '', type: 'tache', priorite: parent?.priorite || '3', statut: parent?.statut || 'todo', progression: 0,
-                dateDebut: start ? dateToGrist(parseInputDate(start)) : null,
-                dateEcheance: end ? dateToGrist(parseInputDate(end)) : null,
-                projet: parent?.projet || null, assignees: null, dependDe: null, tags: null, estimationH: null, tempsPasse: null,
-                subtasks: null, couleur: null, parentTask: panelState.taskId, charges: null, dateCloture: null
-            };
-            try {
-                await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, pruneTaskRecord(record)]]);
-                showToast('Sous-tâche ajoutée', 'success');
-                await loadAllData();
-                const refreshed = tasks.find(t => t.id === panelState.taskId);
-                if (refreshed) panelState.editData = cloneTaskData(refreshed);
-                renderPanelTask();
-                render();
-            } catch (e) {
-                console.error(e);
-                showToast('Erreur création sous-tâche', 'error');
-            }
-        }
-        async function updateChildDate(taskId, field, value) {
-            const child = tasks.find(t => t.id === taskId);
-            if (!child) return;
-            const other = field === 'dateDebut' ? child.dateEcheance : child.dateDebut;
-            const parsed = value ? parseInputDate(value) : null;
-            const otherDate = other ? gristToDate(other) : null;
-            if (parsed && otherDate && field === 'dateDebut' && parsed > otherDate) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); renderPanelTask(); return; }
-            if (parsed && otherDate && field === 'dateEcheance' && parsed < otherDate) { showToast('La date de fin ne peut pas précéder la date de début', 'error'); renderPanelTask(); return; }
-            const gristValue = parsed ? dateToGrist(parsed) : null;
-            try {
-                await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, { [field]: gristValue }]]);
-                child[field] = gristValue;
-                showSaveIndicator();
-                renderPanelTask();
-                render();
-            } catch (e) {
-                console.error(e);
-                showToast('Erreur mise à jour de la date', 'error');
-                renderPanelTask();
-            }
-        }
-
         // WBS-03: création d'une sous-tâche
         function openCreateTaskWithParent(parentId) {
             const today = new Date();
@@ -1828,7 +1753,9 @@
                     </div>
                     <div class="prop-row">
                         <span class="prop-label">Couleur</span>
-                        <div class="prop-value"><input type="color" aria-label="Modifier la couleur" title="Modifier la couleur" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;background:transparent"></div>
+                        <div class="prop-value"><div style="display:flex;gap:8px;align-items:center">
+                            <input class="tf-color-square" type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" title="Choisir la couleur de la tâche">
+                        </div></div>
                     </div>
                     ${(!panelState.isNew || data.parentTask) ? `
                     <div class="prop-row">
@@ -1843,7 +1770,7 @@
                         </div>
                     </div>` : ''}
                     <div class="prop-row">
-                        <span class="prop-label">${assignLabel}</span>
+                        <span class="prop-label">Attribué à</span>
                         <div class="prop-value">
                             ${data.assignees.length ? `<div class="asg-list">${data.assignees.map(id => { const nm = getTeamMemberName(id) || '?'; const initials = nm.split(' ').filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase(); const mem = team.find(x => x.id === id); return `<div class="asg"><span class="asg-ava" style="background:${getTeamMemberColor(id)}">${escapeHtml(initials)}</span><span class="an">${escapeHtml(nm)}</span>${mem && mem.role ? `<span class="ar">${escapeHtml(mem.role)}</span>` : ''}<button class="asg-x" title="Retirer" onclick="removeAssignee(${id})">×</button></div>`; }).join('')}</div>` : ''}
                             <div class="multi-select" id="assigneesSelect"><button class="addbtn" onclick="toggleMultiSelect('assigneesSelect')"><span style="font-size:1rem;line-height:1">+</span> ${data.type === 'reunion' ? 'Ajouter un participant' : 'Assigner un membre'}</button><div class="multi-select-dropdown">${assigneesOptions || '<div class="multi-select-empty">Aucun membre</div>'}</div></div>
@@ -1853,17 +1780,9 @@
                     <div class="prop-row pr-prog">
                         <span class="prop-label">Progression</span>
                         <div class="prop-value">
-                            <div class="progress-inline-wrap">
-                                <div class="progress-bar-mini"><div class="progress-bar-mini-fill" id="progressBarFill" style="width:${data.progression}%"></div></div>
+                            <div class="progress-single-wrap">
+                                <input type="range" class="progress-slider progress-slider-main" min="0" max="100" step="1" value="${data.progression}" style="--progress-value:${data.progression}%" aria-label="Progression" oninput="document.getElementById('progressValue').textContent=this.value+'%'; this.style.setProperty('--progress-value', this.value+'%')" onchange="updateField('progression', parseInt(this.value))">
                                 <span class="progress-pct-label" id="progressValue">${data.progression}%</span>
-                            </div>
-                            <input type="range" class="progress-slider" min="0" max="100" value="${data.progression}" oninput="document.getElementById('progressValue').textContent=this.value+'%';document.getElementById('progressBarFill').style.width=this.value+'%'" onchange="updateField('progression', parseInt(this.value))">
-                            <div class="progress-presets">
-                                <div class="progress-preset ${data.progression === 0 ? 'active' : ''}" onclick="setProgressPreset(0)">0%</div>
-                                <div class="progress-preset ${data.progression === 25 ? 'active' : ''}" onclick="setProgressPreset(25)">25%</div>
-                                <div class="progress-preset ${data.progression === 50 ? 'active' : ''}" onclick="setProgressPreset(50)">50%</div>
-                                <div class="progress-preset ${data.progression === 75 ? 'active' : ''}" onclick="setProgressPreset(75)">75%</div>
-                                <div class="progress-preset ${data.progression === 100 ? 'active' : ''}" onclick="setProgressPreset(100)">100%</div>
                             </div>
                         </div>
                     </div>` : ''}
@@ -1875,7 +1794,7 @@
                     <div class="form-group"><textarea class="form-textarea" placeholder="${descLabel}..." oninput="updateField('description', this.value, true)">${escapeHtml(data.description)}</textarea></div>
                 </div>
 
-                <!-- WBS-03: Sous-tâches (hiérarchie) — vraies tâches avec parentTask -->
+                <!-- V4: Sous-tâches hiérarchiques — vraies lignes Tasks avec dates éditables -->
                 ${!panelState.isNew ? (function() {
                     const kids = getChildren(panelState.taskId);
                     const _par = data.parentTask ? tasks.find(x => x.id === data.parentTask) : null;
@@ -1883,34 +1802,21 @@
                     const kidsList = kids.map(k => {
                         const kp = getPriority(k);
                         const kprog = hasChildren(k) ? aggregateProgress(k) : (k.progression || 0);
-                        const ks = gristToDate(k.dateDebut), ke = gristToDate(k.dateEcheance);
-                        return `<div class="wbs-subtask-row">
-                            <span class="wbs-color-strip" style="background:${PRIORITY_COLORS[kp]}"></span>
-                            <button class="wbs-subtask-name" onclick="openTaskPanel(${k.id})" title="Ouvrir la sous-tâche">↳ ${escapeHtml(k.titre)}</button>
-                            <div class="wbs-subtask-dates">
-                                <input type="date" value="${formatDateInput(ks)}" aria-label="Date de début" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
-                                <span>→</span>
-                                <input type="date" value="${formatDateInput(ke)}" aria-label="Date de fin" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
-                            </div>
-                            <span class="prereq-badge ${k.statut || 'todo'}">${kprog}%</span>
+                        return `<div class="subtask-wbs-row" onclick="if(event.target.tagName!=='INPUT') openTaskPanel(${k.id})">
+                            <span class="subtask-wbs-title"><span style="display:inline-block;width:5px;height:22px;vertical-align:middle;border-radius:3px;background:${PRIORITY_COLORS[kp]};margin-right:6px"></span>↳ ${escapeHtml(k.titre) || 'Sans titre'}</span>
+                            <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateDebut))}" aria-label="Date de début" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
+                            <span class="subtask-wbs-arrow">→</span>
+                            <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateEcheance))}" aria-label="Date de fin" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
+                            <span class="subtask-wbs-progress">${kprog}%</span>
                         </div>`;
                     }).join('');
                     return `<div class="panel-section">
                         <div class="panel-section-header"><span class="panel-section-title">Sous-tâches</span>${kids.length ? `<span class="panel-section-badge">${kids.length}</span>` : ''}</div>
                         ${parentLink}
-                        ${kids.length ? `<div class="wbs-subtask-list">${kidsList}</div>` : `<div class="prereq-empty">Aucune sous-tâche.</div>`}
-                        <button class="panel-btn wbs-add-btn" type="button" onclick="toggleInlineSubtaskForm()">+ Ajouter une sous-tâche</button>
-                        <div id="inlineSubtaskForm" class="inline-subtask-form" style="display:none">
-                            <div class="inline-subtask-title">Nouvelle sous-tâche</div>
-                            <input id="inlineSubtaskName" class="form-input" type="text" placeholder="Nom de la sous-tâche">
-                            <div class="inline-subtask-dates">
-                                <label>Date de début<input id="inlineSubtaskStart" type="date"></label>
-                                <label>Date de fin<input id="inlineSubtaskEnd" type="date"></label>
-                            </div>
-                            <div class="inline-subtask-actions">
-                                <button class="panel-btn inline-cancel" type="button" onclick="cancelInlineSubtask()">Annuler</button>
-                                <button class="panel-btn success" type="button" onclick="addInlineSubtask()">Ajouter</button>
-                            </div>
+                        ${kids.length ? `<div class="subtask-wbs-list">${kidsList}</div>` : `<div class="prereq-empty">Aucune sous-tâche.</div>`}
+                        <div class="subtask-add-inline">
+                            <button class="panel-btn" style="width:auto;padding:7px 12px;font-size:.78rem" onclick="openInlineSubtaskForm()">+ Ajouter une sous-tâche</button>
+                            <div id="inlineSubtaskForm" style="display:none"></div>
                         </div>
                     </div>`;
                 })() : ''}
@@ -1946,23 +1852,59 @@
                 : `<div class="panel-footer-left"><button class="panel-btn danger" onclick="showDeleteConfirm()" style="width:auto;padding:10px 14px">Suppr.</button></div><div class="panel-footer-right"><div class="delete-confirm" id="deleteConfirm" style="display:none;position:fixed;bottom:60px;right:16px;background:#fef2f2;border:1px solid var(--danger);border-radius:8px;padding:10px;z-index:100"><span style="font-size:0.8rem;margin-right:8px">Supprimer ?</span><button class="panel-btn" style="width:auto;padding:6px 12px;font-size:0.75rem" onclick="hideDeleteConfirm()">Non</button><button class="panel-btn" style="width:auto;padding:6px 12px;font-size:0.75rem;background:var(--danger);margin-left:4px" onclick="confirmDelete()">Oui</button></div></div>`;
         }
 
-        // V3: sécurité d'affichage — aucune section Temps & charge ne doit rester visible.
-        function removeLegacyTimeLoadUi() {
-            const root = document.querySelector('.panel-content') || document;
-            root.querySelectorAll('[data-section="time-load"], .time-load-section, .time-load-block, .estimation-block, .logged-time-block, .workload-per-user, .charge-section, .charges-section, .charge-block, .charge-by-person, .charge-row, .charges-by-person').forEach(el => el.remove());
-            [...root.querySelectorAll('*')].forEach(el => {
-                if (el.children.length === 0 && /temps\s*&\s*charge|charge\s+par\s+personne/i.test(el.textContent || '')) el.remove();
-            });
-        }
-        const _tfOriginalRenderPanelTask = renderPanelTask;
-        renderPanelTask = function() {
-            _tfOriginalRenderPanelTask.apply(this, arguments);
-            removeLegacyTimeLoadUi();
-        };
-
         // ═══════════════════════════════════════════════════════════════════════
         // FIELD HANDLERS
         // ═══════════════════════════════════════════════════════════════════════
+        async function updateChildDate(taskId, field, value) {
+            const child = tasks.find(t => t.id === taskId);
+            if (!child) return;
+            const parsed = value ? parseInputDate(value) : null;
+            const gristValue = parsed ? dateToGrist(parsed) : null;
+            child[field] = gristValue;
+            if (!gristReady) { renderPanelTask(); render(); return; }
+            try {
+                await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, { [field]: gristValue }]]);
+                showSaveIndicator(); renderPanelTask(); render();
+            } catch (e) { showToast('Impossible de modifier la date', 'error'); }
+        }
+
+        function openInlineSubtaskForm() {
+            const host = document.getElementById('inlineSubtaskForm');
+            if (!host) return;
+            const today = new Date();
+            host.style.display = 'block';
+            host.innerHTML = `<div class="subtask-add-form">
+                <label class="field-label">Nom de la sous-tâche</label>
+                <input id="newSubtaskTitle" type="text" placeholder="Nom de la sous-tâche..." autocomplete="off">
+                <div class="subtask-add-dates">
+                    <div><label class="field-label">Date de début</label><input id="newSubtaskStart" type="date" value="${formatDateInput(today)}"></div>
+                    <div><label class="field-label">Date de fin</label><input id="newSubtaskEnd" type="date" value="${formatDateInput(addDays(today,1))}"></div>
+                </div>
+                <div class="subtask-add-actions">
+                    <button class="btn" type="button" onclick="cancelInlineSubtaskForm()">Annuler</button>
+                    <button class="btn primary" type="button" onclick="createInlineSubtask()">Ajouter</button>
+                </div>
+            </div>`;
+            setTimeout(() => document.getElementById('newSubtaskTitle')?.focus(), 0);
+        }
+        function cancelInlineSubtaskForm() {
+            const host = document.getElementById('inlineSubtaskForm');
+            if (host) { host.style.display='none'; host.innerHTML=''; }
+        }
+        async function createInlineSubtask() {
+            const titleEl=document.getElementById('newSubtaskTitle'), startEl=document.getElementById('newSubtaskStart'), endEl=document.getElementById('newSubtaskEnd');
+            const title=(titleEl?.value||'').trim(), sv=startEl?.value||'', ev=endEl?.value||'';
+            if(!title){ showToast('Le nom de la sous-tâche est obligatoire','error'); titleEl?.focus(); return; }
+            if(sv && ev && ev<sv){ showToast('La date de fin doit être après la date de début','error'); return; }
+            const parent=tasks.find(t=>t.id===panelState.taskId); if(!parent || !gristReady) return;
+            const record={titre:title,dateDebut:sv?dateToGrist(parseInputDate(sv)):null,dateEcheance:ev?dateToGrist(parseInputDate(ev)):null,parentTask:parent.id,type:'tache',progression:0,priorite:String(parent.priorite||'3'),statut:'todo',projet:parent.projet||null,assignees:[]};
+            try{
+                await grist.docApi.applyUserActions([['AddRecord','Tasks',null,pruneTaskRecord(record)]]);
+                const raw=await grist.docApi.fetchTable('Tasks'); tasks=convertGristToRecords(raw); rebuildChildrenCache();
+                cancelInlineSubtaskForm(); showSaveIndicator(); renderPanelTask(); render();
+            }catch(e){ console.error(e); showToast('Impossible de créer la sous-tâche','error'); }
+        }
+
         function updateField(field, value, noSave = false) {
             const data = panelState.editData;
             if (!data) return;
@@ -1983,18 +1925,15 @@
         }
 
         function setProgressPreset(value) {
+            // V5: presets 25/50/75 removed. Kept only for backward compatibility with any stale event handlers.
             const data = panelState.editData;
             if (!data) return;
-            data.progression = value;
-            syncLocalTask();  // FIX: Synchroniser le task local
-
-            const slider = document.querySelector('.progress-slider');
+            data.progression = Math.max(0, Math.min(100, Number(value) || 0));
+            syncLocalTask();
+            const slider = document.querySelector('.progress-slider-main');
             const valueSpan = document.getElementById('progressValue');
-            const barFill = document.getElementById('progressBarFill');
-            if (slider) slider.value = value;
-            if (valueSpan) valueSpan.textContent = value + '%';
-            if (barFill) barFill.style.width = value + '%';
-            document.querySelectorAll('.progress-preset').forEach(btn => btn.classList.toggle('active', parseInt(btn.textContent) === value));
+            if (slider) { slider.value = data.progression; slider.style.setProperty('--progress-value', data.progression + '%'); }
+            if (valueSpan) valueSpan.textContent = data.progression + '%';
             if (!panelState.isNew && gristReady) saveTaskToGrist();
             render();
         }
@@ -2336,6 +2275,7 @@
         setTimeout(function(){ try { if ((typeof tasks==='undefined' || !tasks || !tasks.length) && typeof useDemoMode==='function') useDemoMode(); } catch(e){ console.log(e); } }, 2800);
         // Nav inter-vues (barre du bas) : uniquement en mode "suite/racine" (?nav dans l'URL), pas en widget indépendant.
         try { if (new URLSearchParams(location.search).has('nav')) document.body.classList.add('suite-nav'); } catch (e) {}
+        applyPanelWidth();
         initGrist();
     </script>
 <style>
@@ -2361,3 +2301,13 @@
 </nav>
 </body>
 </html>
+<style id="taskflow-v5-progress-cleanup">
+/* V5: one editable progress bar only */
+.progress-presets, .progress-preset, .progress-bar-mini, .progress-inline-wrap { display:none !important; }
+.progress-single-wrap { display:flex; align-items:center; gap:12px; width:100%; }
+.progress-single-wrap .progress-slider-main { flex:1; min-width:0; }
+.progress-single-wrap .progress-pct-label { min-width:42px; }
+.progress-slider-main::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--primary); border:2px solid var(--card-bg); box-shadow:0 1px 4px rgba(0,0,0,.18); cursor:grab; }
+.progress-slider-main::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--primary); border:2px solid var(--card-bg); box-shadow:0 1px 4px rgba(0,0,0,.18); cursor:grab; }
+.task-card { border-left-width:12px !important; }
+</style>
