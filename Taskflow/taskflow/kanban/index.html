@@ -524,7 +524,35 @@
         .btn, .filter-btn { white-space: nowrap; }
         .icon-btn { width: 34px; padding: 0; }
         #colorSelect { height: 34px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 0.74rem; padding: 0 8px; }
+        #btnShowSubs { min-width: 112px; justify-content: center; }
         #btnShowSubs.active { background: var(--p-50); color: var(--primary); border-color: var(--primary); }
+        /* V13 — hiérarchie visible dans les cartes + zone réservée aux alertes */
+        .task-card { position: relative; }
+        .card-header { position: relative; padding-right: 28px; }
+        .tf-alert-slot { position:absolute; top:0; right:0; width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 24px; }
+        .tf-hierarchy-children { margin-top:10px; padding-left:13px; position:relative; }
+        .tf-hierarchy-children::before { content:''; position:absolute; left:3px; top:0; bottom:8px; width:1px; background:var(--border-dark); }
+        .tf-subtask-preview { position:relative; margin:6px 0 0; padding:8px 9px 8px 13px; border:1px solid var(--border); border-radius:8px; background:var(--bg); cursor:pointer; min-height:54px; }
+        .tf-subtask-preview::before { content:''; position:absolute; left:-10px; top:15px; width:10px; height:1px; background:var(--border-dark); }
+        .tf-subtask-preview.pending { border-left:4px solid var(--info); }
+        .tf-subtask-preview.done { border-left:4px solid var(--success); background:#f7faf9; opacity:.72; }
+        .tf-subtask-preview:hover { border-color:var(--primary); background:var(--card-bg); opacity:1; }
+        .tf-subtask-head { display:flex; align-items:flex-start; gap:7px; min-width:0; padding-right:25px; position:relative; }
+        .tf-subtask-check { width:16px; height:16px; border-radius:50%; border:1px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex:0 0 16px; font-size:10px; color:transparent; background:var(--card-bg); }
+        .tf-subtask-preview.done .tf-subtask-check { color:#fff; background:var(--success); border-color:var(--success); }
+        .tf-subtask-title { flex:1; min-width:0; font-size:.72rem; font-weight:600; line-height:1.25; }
+        .tf-subtask-preview.done .tf-subtask-title { text-decoration:line-through; color:var(--text-muted); }
+        .tf-subtask-state { flex:0 0 auto; font-size:.58rem; font-weight:700; padding:2px 5px; border-radius:999px; background:var(--surface-2); color:var(--text-muted); white-space:nowrap; }
+        .tf-subtask-preview.done .tf-subtask-state { background:var(--success-light); color:#087a53; }
+        .tf-subtask-state.inprogress { background:var(--warning-light); color:var(--warn-ink); }
+        .tf-subtask-meta { display:flex; align-items:center; gap:7px; margin:5px 0 0 23px; color:var(--text-light); font-size:.61rem; }
+        .tf-subtask-progress { height:3px; margin:5px 0 0 23px; background:var(--border); border-radius:99px; overflow:hidden; }
+        .tf-subtask-progress > span { display:block; height:100%; background:var(--primary); border-radius:99px; }
+        .tf-subtask-preview.done .tf-subtask-progress > span { background:var(--success); }
+        .tf-subtask-assignee { margin-left:auto; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .tf-subtask-alert-slot { position:absolute; right:0; top:0; width:22px; height:22px; border-radius:7px; }
+        .tf-hierarchy-count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; margin-left:4px; border-radius:999px; background:var(--primary-light); color:var(--primary); font-size:.62rem; font-weight:700; vertical-align:middle; }
+        @media (max-width:900px) { #btnShowSubs { min-width:38px; width:38px; padding:0; font-size:0; } #btnShowSubs::before { content:'↳'; font-size:16px; } .tf-subtask-state { display:none; } }
         /* 01 · barre unifiée — compteur, menu consolidé, menu ⋯ */
         .filter-count { background: var(--primary); color: #fff; border-radius: 999px; min-width: 17px; height: 17px; padding: 0 4px; font-size: 0.62rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-left: 2px; }
         .filter-menu.wide { min-width: 234px; max-height: 62vh; overflow-y: auto; padding: 4px; }
@@ -719,22 +747,11 @@
                 <div class="filter-menu wide" id="filterAllMenu"></div>
             </div>
             <div class="hdr-sep"></div>
-            <select id="colorSelect" onchange="changeColorMode(this.value)" title="Couleur des cartes">
-                <option value="priority">Couleur : Priorité</option>
-                <option value="project">Couleur : Projet</option>
-                <option value="assignee">Couleur : Assigné</option>
-                <option value="status">Couleur : Statut</option>
-            </select>
-            <select id="levelSelect" onchange="changeWorkLevel(this.value)" title="Niveau affiché — Actions = tâches sans sous-tâche (feuilles) ; Synthèses = tâches qui regroupent des sous-tâches (parents)">
-                <option value="all">Niveau : Tous</option>
-                <option value="actions">Niveau : Actions</option>
-                <option value="parents">Niveau : Synthèses</option>
-            </select>
+            <button class="btn tf-hierarchy-btn" id="btnShowSubs" onclick="toggleShowSubtasks()" title="Afficher ou masquer les sous-tâches dans les cartes">↳ Hiérarchie</button>
             <button class="btn project-manager-main" onclick="openProjectManager()" title="Créer, renommer, colorer et réordonner les projets">⚙ Gérer les projets</button>
             <div class="filter-dropdown" id="moreDropdown">
                 <button class="btn icon-btn" onclick="toggleFilterMenu('more')" title="Plus d'actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></button>
                 <div class="filter-menu" id="filterMoreMenu" style="right:0;left:auto;min-width:200px">
-                    <div class="filter-option" id="moreSubsToggle" onclick="toggleShowSubtasks()"><span class="ms-ic">↳</span> Sous-tâches (hiérarchie)</div>
                     <div class="filter-sep"></div>
                     <div class="filter-option" onclick="exportPrint()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimer / PDF</div>
                     <div class="filter-option" onclick="exportPNG()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Image PNG</div>
@@ -1208,7 +1225,7 @@
         let colorMode = localStorage.getItem('taskflow_kanban_colormode') || 'priority';
         let showSubtasks = localStorage.getItem('taskflow_kanban_showsubs') === '1';  // WBS-03: afficher enfants
         // #9 niveau de travail (par widget, opt-in, defaut 'all') : 'actions' = feuilles, 'parents' = noeuds de synthese.
-        let workLevel = localStorage.getItem('taskflow_kanban_worklevel') || 'all';
+        let workLevel = 'all';
         let filters = { project: [], priority: [], assignee: [], status: [] };  // KAN-01: Ajout filtre statut
         let panelState = { open: false, isNew: false, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null };
         let sortableInstances = [];
@@ -1524,7 +1541,7 @@
             if (menu) menu.innerHTML = grp('Projets', projHtml, true) + grp('Priorités', prioHtml) + grp('Assignés', assHtml) + grp('Statuts', statHtml) + (total ? '<div class="fm-foot"><span class="fm-clear" onclick="clearAllFilters()">Tout effacer</span></div>' : '');
             const cnt = document.getElementById('filterCount'); if (cnt) { cnt.textContent = total; cnt.style.display = total ? 'inline-flex' : 'none'; }
             const fbtn = document.getElementById('filterBtn'); if (fbtn) fbtn.classList.toggle('has-filter', total > 0);
-            const ms = document.getElementById('moreSubsToggle'); if (ms) { ms.classList.toggle('on', showSubtasks); const off = workLevel !== 'all'; ms.style.opacity = off ? '0.45' : ''; ms.style.pointerEvents = off ? 'none' : ''; ms.title = off ? 'Indisponible : le filtre « Niveau » prime sur ce reglage' : ''; }
+            const hb = document.getElementById('btnShowSubs'); if (hb) hb.classList.toggle('active', showSubtasks);
             renderFilterChips();
         }
         function renderFilterChips() {
@@ -1824,6 +1841,36 @@
             return [];
         }
 
+        function renderSubtaskPreview(t, depth = 0) {
+            const done = TF.isTerminal(statusCfg, t.statut) || Number(t.progression || 0) >= 100;
+            const stateClass = done ? 'done' : (String(t.statut || '') === 'inprogress' ? 'inprogress' : 'pending');
+            const stateLabel = done ? '✓ Terminée' : (stateClass === 'inprogress' ? 'En cours' : 'À venir');
+            const prog = Math.max(0, Math.min(100, Number(t.progression || 0)));
+            const d0 = t.dateDebut ? gristToDate(t.dateDebut) : null;
+            const d1 = t.dateEcheance ? gristToDate(t.dateEcheance) : null;
+            const fmt = d => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}` : '';
+            const dates = d0 || d1 ? `${fmt(d0)}${d0 && d1 ? ' → ' : ''}${fmt(d1)}` : '';
+            const aa = getAssignees(t);
+            const who = aa.length ? getInitials(getTeamMemberName(aa[0])) : '';
+            const whoTitle = aa.length ? aa.map(id => getTeamMemberName(id)).filter(Boolean).join(', ') : '';
+            const children = showSubtasks && depth < 2 ? getChildren(t.id) : [];
+            return `<div class="tf-subtask-preview ${stateClass}" data-id="${t.id}" onclick="event.stopPropagation();handleTaskCardClick(event, ${t.id})" title="Ouvrir la sous-tâche">
+                <div class="tf-subtask-head">
+                    <span class="tf-subtask-check">✓</span>
+                    <span class="tf-subtask-title">↳ ${escapeHtml(t.titre || 'Sans titre')}</span>
+                    <span class="tf-subtask-state ${stateClass}">${stateLabel}</span>
+                    <span class="tf-subtask-alert-slot" aria-hidden="true"></span>
+                </div>
+                <div class="tf-subtask-meta">
+                    ${dates ? `<span>📅 ${dates}</span>` : ''}
+                    ${who ? `<span class="tf-subtask-assignee" title="${escapeHtml(whoTitle)}">${escapeHtml(who)}</span>` : ''}
+                    <span>${prog}%</span>
+                </div>
+                <div class="tf-subtask-progress"><span style="width:${prog}%"></span></div>
+                ${children.length ? `<div class="tf-hierarchy-children tf-subtask-children">${children.map(k => renderSubtaskPreview(k, depth + 1)).join('')}</div>` : ''}
+            </div>`;
+        }
+
         function renderCard(t) {
             const p = getPriority(t);
             const assignees = getAssignees(t);
@@ -1835,7 +1882,6 @@
             const subsDone = subs.filter(s => s.done).length;
             const nChildren = getChildren(t.id).length;
             const isChild = !!t.parentTask;
-
             const barColor = getTaskColor(t);
             const prog = t.progression || 0;
             let dueHtml = '';
@@ -1851,21 +1897,24 @@
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
+            const children = showSubtasks && !isChild ? getChildren(t.id) : [];
             return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
-                    <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}</span>
+                    <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
+                    <span class="tf-alert-slot" aria-hidden="true"></span>
                 </div>
                 <div class="card-meta">
                     <span class="tf-badge tf-p${p}">${PRIORITY_LABELS[p]}</span>
                     ${projectName ? `<span class="card-project"><span style="color:${projectColor}">●</span> ${escapeHtml(projectName)}</span>` : ''}
                     ${deps.length ? `<span class="card-deps">← ${deps.length}</span>` : ''}
-                    ${subs.length ? `<span class="card-subs${subsDone === subs.length ? ' complete' : ''}" title="Sous-tâches (checklist)">◎ ${subsDone}/${subs.length}</span>` : ''}
-                    ${nChildren ? `<span class="card-subs" title="Sous-tâches (hiérarchie)" onclick="event.stopPropagation();openTaskPanel(${t.id})">↳ ${nChildren}</span>` : ''}
+                    ${subs.length ? `<span class="card-subs${subsDone === subs.length ? ' complete' : ''}" title="Checklist">◎ ${subsDone}/${subs.length}</span>` : ''}
+                    ${nChildren ? `<span class="card-subs" title="Sous-tâches (hiérarchie)">↳ ${nChildren}</span>` : ''}
                     ${dueHtml}
                 </div>
                 ${t.type !== 'jalon' ? `<div class="card-progress-row"><div class="card-progress" onclick="event.stopPropagation();setCardProgress(event, ${t.id})"><div class="card-progress-fill p${p}" style="width:${prog}%"></div></div><span class="card-progress-pct">${prog}%</span></div>` : ''}
-                ${assignees.length ? `<div class="card-assignees">${assignees.slice(0, 3).map(id => `<div class="card-avatar" style="background:${getTeamMemberColor(id)}">${getInitials(getTeamMemberName(id))}</div>`).join('')}${assignees.length > 3 ? `<div class="card-avatar more">+${assignees.length - 3}</div>` : ''}</div>` : ''}
+                ${assignees.length ? `<div class="card-assignees">${assignees.slice(0, 3).map(id => `<div class="card-avatar" style="background:${getTeamMemberColor(id)}" title="${escapeHtml(getTeamMemberName(id))}">${getInitials(getTeamMemberName(id))}</div>`).join('')}${assignees.length > 3 ? `<div class="card-avatar more">+${assignees.length - 3}</div>` : ''}</div>` : ''}
+                ${children.length ? `<div class="tf-hierarchy-children">${children.map(k => renderSubtaskPreview(k)).join('')}</div>` : ''}
             </div>`;
         }
 
@@ -2662,8 +2711,6 @@
         });
 
         // Sync du select couleur avant même que Grist ne réponde (évite flash)
-        { const s = document.getElementById('colorSelect'); if (s) s.value = colorMode; }
-        { const s = document.getElementById('levelSelect'); if (s) s.value = workLevel; }
         { const b = document.getElementById('btnShowSubs'); if (b) b.classList.toggle('active', showSubtasks); }
         // Décorateur panneau (look « Propriétés / B ») : icône devant chaque libellé, sans toucher au rendu
         (function(){
