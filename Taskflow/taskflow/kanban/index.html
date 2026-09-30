@@ -118,7 +118,7 @@
         /* Main */
         .main-content { display: flex; flex: 1; overflow: hidden; position: relative; }
         .kanban-container { flex: 1; display: flex; gap: 16px; padding: 16px; overflow-x: auto; transition: margin-right 0.25s ease; }
-        .kanban-container.panel-open { margin-right: var(--panel-width); overflow-x: hidden; }
+        .kanban-container.panel-open { margin-right: var(--panel-width); overflow-x: auto; }
         .kanban-container.panel-open .kanban-column { min-width: 200px; max-width: 280px; }
         /* BUG-04 FIX: Overlay pour protéger le panel */
         .panel-overlay { position: absolute; top: 0; left: 0; right: var(--panel-width); bottom: 0; z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
@@ -185,10 +185,11 @@
         .panel-quick-select:hover,.panel-quick-btn:hover{border-color:var(--border-dark);background:var(--card-bg)}
         .panel-quick-select:focus,.panel-quick-btn:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(62,93,231,.10)}
         .panel-quick-select.priority{min-width:92px}.panel-quick-select.status{min-width:104px}.panel-quick-select.project{min-width:190px;max-width:280px}
+        .quick-project{position:relative;display:inline-flex}.quick-project-btn{min-width:190px;max-width:280px;justify-content:flex-start}.quick-project-menu{display:none;position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:300px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:600}.quick-project.open .quick-project-menu{display:block}.quick-project-option{width:100%;display:flex;align-items:center;gap:8px;padding:8px 9px;border:0;background:transparent;border-radius:7px;color:var(--text);font:600 .74rem/1.2 inherit;cursor:pointer;text-align:left}.quick-project-option:hover{background:var(--primary-light)}.quick-project-dot{width:9px;height:9px;border-radius:3px;flex:0 0 9px;box-shadow:0 0 0 1px rgba(15,23,42,.08)}
         .quick-assignee{position:relative;display:inline-flex}.quick-assignee .panel-quick-btn{min-width:112px}.quick-assignee-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;min-width:230px;max-height:280px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:500}.quick-assignee.open .quick-assignee-menu{display:block}
         .quick-assignee-option{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:6px;font-size:.76rem;cursor:pointer}.quick-assignee-option:hover{background:var(--bg)}.quick-assignee-option input{margin:0}
         .panel-quick-date{position:relative;height:32px;display:inline-flex;align-items:center}.panel-quick-date input{width:108px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font:600 .72rem/1 inherit;padding:0 8px 0 27px;box-sizing:border-box;cursor:pointer}.panel-quick-date:before{content:'📅';position:absolute;left:8px;font-size:12px;pointer-events:none;z-index:1}
-        .panel-quick-color{width:32px;height:32px;min-width:32px;padding:3px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);cursor:pointer;box-sizing:border-box}.panel-quick-color::-webkit-color-swatch-wrapper{padding:0}.panel-quick-color::-webkit-color-swatch{border:0;border-radius:6px}
+        .panel-quick-color{display:none}
         .panel-quick-type{margin-bottom:12px}
         .props-list .pr-status,.props-list .pr-priority,.props-list .pr-dates,.props-list .pr-project,.props-list .pr-assignees{display:none!important}
         /* V4 : barre basse de navigation entre les tâches, indépendante du panneau */
@@ -201,11 +202,13 @@
         .task-bottom-label{min-width:54px;text-align:center;font-size:.72rem;font-weight:650;color:var(--text-muted);font-variant-numeric:tabular-nums}
         body.task-panel-open .task-bottom-nav{right:var(--panel-width)}
         @media(max-width:900px){body.task-panel-open .task-bottom-nav{right:0}}
-        @media(max-width:560px){.panel-quick-select.project{min-width:150px;max-width:100%}.task-bottom-nav{bottom:68px}}
+        @media(max-width:560px){.panel-quick-select.project{min-width:150px;max-width:100%}.quick-project-btn{min-width:150px;max-width:100%}.task-bottom-nav{bottom:68px}}
 
         /* Panel */
         .panel { position: absolute; top: 0; right: 0; width: var(--panel-width); height: 100%; background: var(--card-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; z-index: 50; }
         .panel.open { transform: translateX(0); }
+        .panel.shift-floating { top: 50%; left: 50%; right: auto; width: min(900px, calc(100% - 40px)); height: min(86vh, 900px); transform: translate(-50%, -50%); border:1px solid var(--border); border-radius:14px; box-shadow:0 24px 70px rgba(15,23,42,.24); z-index:1000; }
+        .panel.shift-floating.open { transform: translate(-50%, -50%); }
         .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg); gap: 8px; }
         .panel-nav { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
         .panel-nav-btn { width: 28px; height: 28px; border: 1px solid var(--border); background: var(--card-bg); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; flex-shrink: 0; transition: all 0.15s; }
@@ -1125,7 +1128,7 @@
         // #9 niveau de travail (par widget, opt-in, defaut 'all') : 'actions' = feuilles, 'parents' = noeuds de synthese.
         let workLevel = localStorage.getItem('taskflow_kanban_worklevel') || 'all';
         let filters = { project: [], priority: [], assignee: [], status: [] };  // KAN-01: Ajout filtre statut
-        let panelState = { open: false, isNew: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null };
+        let panelState = { open: false, isNew: false, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null };
         let sortableInstances = [];
         let projectSortableInstance = null;
         let saveTimeout = null;
@@ -1523,7 +1526,19 @@
             if(idx<0) idx=dir>0 ? -1 : 0;
             idx=(idx+dir+list.length)%list.length;
             const t=list[idx];
-            if(t) openTaskPanel(t.id);
+            if(t) {
+                openTaskPanel(t.id, {floating: !!panelState.floating});
+                if (groupBy === 'projet') {
+                    requestAnimationFrame(() => {
+                        const container = document.getElementById('kanbanContainer');
+                        const col = container && container.querySelector(`.project-column[data-key="${t.projet ?? 'none'}"]`);
+                        if (container && col) {
+                            const target = Math.max(0, col.offsetLeft - Math.max(40, container.clientWidth * 0.18));
+                            container.scrollTo({left: target, behavior: 'smooth'});
+                        }
+                    });
+                }
+            }
         }
 
         function render() {
@@ -1650,7 +1665,7 @@
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
-            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="openTaskPanel(${t.id})">
+            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
@@ -1697,19 +1712,22 @@
         // ═══════════════════════════════════════════════════════════════════════
         function openPanel() { 
             panelState.open = true; 
-            document.body.classList.add('task-panel-open');
-            document.getElementById('panel').classList.add('open'); 
-            document.getElementById('kanbanContainer').classList.add('panel-open'); 
-            document.getElementById('panelOverlay').classList.add('visible');
+            const panel = document.getElementById('panel');
+            const floating = !!panelState.floating;
+            document.body.classList.toggle('task-panel-open', !floating);
+            panel.classList.toggle('shift-floating', floating);
+            panel.classList.add('open'); 
+            document.getElementById('kanbanContainer').classList.toggle('panel-open', !floating); 
+            document.getElementById('panelOverlay').classList.toggle('visible', !floating);
             renderTaskBottomNav();
         }
         function closePanel() { 
             panelState.open = false; 
             document.body.classList.remove('task-panel-open');
-            document.getElementById('panel').classList.remove('open'); 
+            document.getElementById('panel').classList.remove('open','shift-floating'); 
             document.getElementById('kanbanContainer').classList.remove('panel-open'); 
             document.getElementById('panelOverlay').classList.remove('visible');
-            panelState = { open: false, isNew: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null }; 
+            panelState = { open: false, isNew: false, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null }; 
             selectedTaskId = null; 
             renderTaskBottomNav();
             render(); 
@@ -1723,7 +1741,7 @@
             }
         }
 
-        function openTaskPanel(taskId) {
+        function openTaskPanel(taskId, options = {}) {
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
             selectedTaskId = taskId;
@@ -1744,6 +1762,7 @@
                 }
             }
             
+            panelState.floating = !!options.floating;
             panelState.taskId = taskId;
             panelState.taskIndex = colTasks.findIndex(t => t.id === taskId);
             panelState.columnTasks = colTasks;
@@ -1766,7 +1785,7 @@
             else if (groupBy === 'projet') preset.projet = colKey === 'none' ? null : parseInt(colKey);
 
             panelState = {
-                open: true, isNew: true, taskId: null, taskIndex: -1, columnTasks: [], columnKey: colKey,
+                open: true, isNew: true, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: colKey,
                 editData: { titre: '', description: '', type: 'tache', priorite: preset.priorite || '3', statut: preset.statut || 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: preset.projet !== undefined ? preset.projet : (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: null, charges: [] }
             };
             renderPanelTask();
@@ -1779,7 +1798,7 @@
             const today = new Date();
             const parent = parentId ? tasks.find(t => t.id === parentId) : null;
             panelState = {
-                open: true, isNew: true, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null,
+                open: true, isNew: true, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null,
                 editData: { titre: '', description: '', type: 'tache', priorite: '3', statut: 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: parent?.projet || (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: parentId || null, charges: [] }
             };
             renderPanelTask();
@@ -1830,7 +1849,7 @@
             if (newIdx < 0) newIdx = panelState.columnTasks.length - 1;
             if (newIdx >= panelState.columnTasks.length) newIdx = 0;
             const t = panelState.columnTasks[newIdx];
-            if (t) openTaskPanel(t.id);
+            if (t) openTaskPanel(t.id, {floating: !!panelState.floating});
         }
 
         function formatDateShort(d) {
@@ -1845,6 +1864,23 @@
             if (!w) return;
             document.querySelectorAll('.quick-assignee.open').forEach(x=>{if(x!==w)x.classList.remove('open')});
             w.classList.toggle('open');
+        }
+
+        function toggleQuickProject(ev) {
+            if (ev) ev.stopPropagation();
+            const w=document.getElementById('quickProjectWrap');
+            if (!w) return;
+            document.querySelectorAll('.quick-project.open').forEach(x=>{if(x!==w)x.classList.remove('open')});
+            w.classList.toggle('open');
+        }
+        function selectQuickProject(id) {
+            const n = id === null || id === '' ? null : parseInt(id, 10);
+            updateField('projet', n);
+            document.querySelectorAll('.quick-project.open').forEach(x=>x.classList.remove('open'));
+        }
+        function handleTaskCardClick(ev, taskId) {
+            if (ev && ev.shiftKey) { ev.preventDefault(); ev.stopPropagation(); openTaskPanel(taskId, {floating:true}); return; }
+            openTaskPanel(taskId);
         }
 
         function renderPanelTask() {
@@ -1916,15 +1952,21 @@
                     <select class="panel-quick-select status" onchange="updateField('statut', this.value)" aria-label="Statut">
                         ${(data.type !== 'jalon' ? statusCfg.list : statusCfg.list.filter(st => st.value === statusCfg.firstValue || st.value === statusCfg.terminalValue)).map(st => `<option value="${escapeHtml(st.value)}" ${data.statut === st.value ? 'selected' : ''}>● ${escapeHtml(st.label)}</option>`).join('')}
                     </select>
-                    <select class="panel-quick-select project" onchange="updateField('projet', parseInt(this.value) || null)" aria-label="Projet">
-                        <option value="">Aucun projet</option>${projectOptions}
-                    </select>
+                    <div class="quick-project" id="quickProjectWrap">
+                        <button type="button" class="panel-quick-btn quick-project-btn" onclick="toggleQuickProject(event)" aria-haspopup="listbox" aria-label="Projet">
+                            <span class="quick-project-dot" style="background:${currentProject?.couleur || '#94a3b8'}"></span> ${escapeHtml(currentProject?.nom || 'Aucun projet')}⌄
+                        </button>
+                        <div class="quick-project-menu" role="listbox">
+                            <button type="button" class="quick-project-option" onclick="selectQuickProject('')"><span class="quick-project-dot" style="background:#94a3b8"></span>Aucun projet</button>
+                            ${projects.filter(p=>p.actif!==false).map(p=>`<button type="button" class="quick-project-option" onclick="selectQuickProject(${p.id})"><span class="quick-project-dot" style="background:${p.couleur || '#94a3b8'}"></span>${escapeHtml(p.nom)}</button>`).join('')}
+                        </div>
+                    </div>
                     <div class="quick-assignee" id="quickAssigneeWrap">
                         <button type="button" class="panel-quick-btn" onclick="toggleQuickAssignees(event)">👤 ${data.assignees.length ? `${data.assignees.length} ${data.assignees.length > 1 ? 'assignés' : 'assigné'}` : 'Assigné'}⌄</button>
                         <div class="quick-assignee-menu">${assigneesOptions || '<div style="padding:8px;font-size:.75rem;color:var(--text-muted)">Aucun membre</div>'}</div>
                     </div>
                     <label class="panel-quick-date" title="Date butoir"><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)" aria-label="Date butoir"></label>
-                    <input class="panel-quick-color" type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" title="Couleur de la tâche" aria-label="Couleur de la tâche">
+
                 </div>
                 <div class="panel-type-row panel-quick-type">
                     <span class="type-pill ${data.type === 'tache' ? 'selected' : ''}" onclick="updateField('type','tache')">Tâche</span><span class="type-pill ${data.type === 'jalon' ? 'selected' : ''}" onclick="updateField('type','jalon')">◆ Jalon</span><span class="type-pill ${data.type === 'reunion' ? 'selected' : ''}" onclick="updateField('type','reunion')">Réunion</span>
@@ -1962,16 +2004,14 @@
                             <select class="form-select" onchange="updateField('projet', parseInt(this.value) || null)"><option value="">Aucun projet</option>${projectOptions}</select>
                         </div></div>
                     </div>
-                    ${(!panelState.isNew || data.parentTask) ? `
+                    ${data.parentTask ? `
                     <div class="prop-row">
                         <span class="prop-label">Tâche principale</span>
                         <div class="prop-value">
-                            ${data.parentTask
-                                ? `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                                    <span class="multi-select-chip" ${panelState.isNew ? '' : `onclick="openTaskPanel(${data.parentTask})"`} style="${panelState.isNew ? '' : 'cursor:pointer;'}background:var(--primary-light);color:var(--primary)">↑ ${escapeHtml((tasks.find(t => t.id === data.parentTask) || {}).titre || '(inconnu)')}</span>
-                                    <button class="btn" style="padding:4px 10px;font-size:0.72rem" onclick="detachFromParent()">Détacher</button>
-                                  </div>`
-                                : `<select class="form-select" onchange="if(this.value)setParent(parseInt(this.value))"><option value="">— Tâche principale —</option>${tasks.filter(t => t.id !== panelState.taskId && canSetParent(panelState.taskId, t.id)).map(t => `<option value="${t.id}">${escapeHtml(t.titre)}</option>`).join('')}</select>`}
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                                <span class="multi-select-chip" ${panelState.isNew ? '' : `onclick="openTaskPanel(${data.parentTask})"`} style="${panelState.isNew ? '' : 'cursor:pointer;'}background:var(--primary-light);color:var(--primary)">↑ ${escapeHtml((tasks.find(t => t.id === data.parentTask) || {}).titre || '(inconnu)')}</span>
+                                <button class="btn" style="padding:4px 10px;font-size:0.72rem" onclick="detachFromParent()">Transformer en tâche principale</button>
+                            </div>
                         </div>
                     </div>` : ''}
                     <div class="prop-row pr-assignees">
@@ -2403,6 +2443,7 @@
         // Events
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.quick-assignee')) document.querySelectorAll('.quick-assignee.open').forEach(x=>x.classList.remove('open'));
+            if (!e.target.closest('.quick-project')) document.querySelectorAll('.quick-project.open').forEach(x=>x.classList.remove('open'));
             if (!e.target.closest('.filter-dropdown')) document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open'));
             if (!e.target.closest('.multi-select')) document.querySelectorAll('.multi-select').forEach(s => s.classList.remove('open'));
             // Fermer les pickers couleur (Projects / Team) si clic extérieur
