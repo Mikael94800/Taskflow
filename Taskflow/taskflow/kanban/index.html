@@ -86,6 +86,7 @@
             overflow-y: hidden;
             scrollbar-width: thin;
             z-index: 99999;
+            isolation: isolate;
         }
         .tf-app-nav::-webkit-scrollbar { height: 4px; }
         .tf-app-nav-link {
@@ -125,23 +126,31 @@
         .panel-meta-pill .dot { width:7px; height:7px; border-radius:50%; flex:none; }
         .panel-meta-pill.due { font-variant-numeric:tabular-nums; }
         .panel-meta-pills .tf-color-square {
-            width: 24px; height: 24px; min-width: 24px; padding: 0; margin-left: 1px;
-            border: 1px solid var(--border-dark); border-radius: 6px; background: transparent;
+            width: 28px; height: 28px; min-width: 28px; padding: 0; margin-left: 1px;
+            border: 1px solid var(--border-dark); border-radius: 7px; background: transparent;
             cursor: pointer; flex: 0 0 24px; overflow: hidden;
         }
         .panel-meta-pills .tf-color-square::-webkit-color-swatch-wrapper { padding: 0; }
-        .panel-meta-pills .tf-color-square::-webkit-color-swatch { border: 0; border-radius: 5px; }
-        .panel-meta-pills .tf-color-square::-moz-color-swatch { border: 0; border-radius: 5px; }
+        .panel-meta-pills .tf-color-square::-webkit-color-swatch { border: 0; border-radius: 6px; }
+        .panel-meta-pills .tf-color-square::-moz-color-swatch { border: 0; border-radius: 6px; }
 
         /* ═════ SOUS-TÂCHES / CHECKLIST — bloc ergonomique ═════ */
-        .subtask-wbs-row { position:relative; grid-template-columns:minmax(0,1fr) auto auto; }
+        .subtask-wbs-row { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 32px; align-items:start; gap:7px 9px; }
         .subtask-wbs-row:hover { border-color:var(--border-dark); background:var(--card-bg); }
-        .subtask-wbs-title { padding-right:4px; }
+        .subtask-wbs-main { min-width:0; }
+        .subtask-wbs-title { padding-right:4px; line-height:1.35; }
+        .subtask-wbs-dates { display:flex; align-items:center; gap:6px; margin-top:6px; }
+        .subtask-wbs-dates .subtask-wbs-arrow { flex:0 0 auto; }
+        .subtask-wbs-dates .subtask-wbs-date { flex:0 0 138px; width:138px; min-width:0; }
+        .project-drag-handle { cursor:grab; user-select:none; }
+        .project-drag-handle:active { cursor:grabbing; }
+        .project-sortable-ghost { opacity:.45; outline:2px dashed var(--primary); outline-offset:-2px; }
+        .project-sortable-chosen { box-shadow:0 12px 28px rgba(16,24,40,.16); }
         .subtask-wbs-mini { grid-column:1/-1; display:flex; align-items:center; gap:8px; margin-top:1px; }
         .subtask-wbs-mini-bar { flex:1; height:5px; background:var(--surface-2); border-radius:999px; overflow:hidden; }
         .subtask-wbs-mini-fill { height:100%; background:var(--primary); border-radius:999px; }
         .subtask-wbs-mini-pct { min-width:34px; text-align:right; font-size:.67rem; font-weight:700; color:var(--text-muted); }
-        .subtask-menu-btn { width:26px; height:26px; border:1px solid var(--border); background:var(--card-bg); color:var(--text-muted); border-radius:7px; cursor:pointer; font-size:16px; line-height:1; }
+        .subtask-menu-btn { width:28px; height:28px; align-self:start; border:1px solid var(--border); background:var(--card-bg); color:var(--text-muted); border-radius:7px; cursor:pointer; font-size:16px; line-height:1; }
         .subtask-menu-btn:hover { color:var(--primary); border-color:var(--primary); background:var(--primary-light); }
         .checklist-box { border:1px dashed var(--border-dark); border-radius:10px; padding:10px; background:linear-gradient(180deg,var(--card-bg),var(--bg)); }
         .checklist-empty { display:flex; align-items:flex-start; gap:9px; padding:9px 10px; margin-bottom:8px; border-radius:8px; background:var(--surface-2); color:var(--text-muted); font-size:.76rem; line-height:1.45; }
@@ -269,7 +278,7 @@
         .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
         .form-input.title-input { font-size: 1rem; font-weight: 600; border: none; padding: 8px 0; background: transparent; border-bottom: 2px solid var(--border); border-radius: 0; }
         .form-input.title-input:focus { border-bottom-color: var(--primary); box-shadow: none; }
-        .form-textarea { min-height: 70px; resize: vertical; font-size: 0.8rem; }
+        .form-textarea { min-height: 70px; resize: vertical; font-family: inherit; font-size: 0.85rem; line-height: 1.5; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .priority-selector { display: flex; gap: 6px; }
         .priority-pill { flex: 1; padding: 8px 4px; border: 2px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; font-size: 0.7rem; font-weight: 600; background: var(--card-bg); }
@@ -465,20 +474,20 @@
         .prereq-empty { color: var(--text-muted); font-size: 0.8rem; padding: 8px 0; font-style: italic; }
         /* V4 — sous-tâches lisibles et dates éditables */
         .subtask-wbs-list { display:flex; flex-direction:column; gap:7px; }
-        .subtask-wbs-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:start; gap:8px; padding:8px 9px; background:var(--bg); border:1px solid var(--border); border-radius:8px; }
-        .subtask-wbs-title { min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35; font-size:.8rem; color:var(--text); padding-top:4px; }
-        .subtask-wbs-date { width:124px; min-width:124px; padding:6px 7px; border:1px solid var(--border-dark); border-radius:7px; background:var(--card-bg); color:var(--text); font-size:.72rem; font-variant-numeric:tabular-nums; }
+        .subtask-wbs-row { display:grid; grid-template-columns:minmax(0,1fr) 32px; align-items:start; gap:7px 9px; padding:9px; background:var(--bg); border:1px solid var(--border); border-radius:8px; }
+        .subtask-wbs-title { min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.35; font-size:.8rem; color:var(--text); padding-top:1px; }
+        .subtask-wbs-date { width:138px; min-width:0; padding:6px 7px; border:1px solid var(--border-dark); border-radius:7px; background:var(--card-bg); color:var(--text); font-family:inherit; font-size:.76rem; font-variant-numeric:normal; letter-spacing:0; }
         .subtask-wbs-date:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
         .subtask-wbs-arrow { align-self:center; color:var(--text-muted); font-weight:600; }
         .subtask-wbs-progress { grid-column:1/-1; font-size:.68rem; color:var(--text-muted); display:flex; justify-content:flex-end; }
-        .subtask-add-inline { margin-top:8px; }
+        .subtask-add-inline { margin-top: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); } margin-top:8px; }
         .subtask-add-form { padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
         .subtask-add-form .field-label { display:block; margin:0 0 4px; font-size:.68rem; color:var(--text-muted); font-weight:600; }
         .subtask-add-form input[type=text], .subtask-add-form input[type=date] { width:100%; padding:8px 9px; border:1px solid var(--border-dark); border-radius:7px; background:var(--card-bg); font-size:.78rem; }
         .subtask-add-form input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light); }
         .subtask-add-dates { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
         .subtask-add-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:9px; }
-        @media (max-width:900px) { .subtask-wbs-row { grid-template-columns:minmax(0,1fr) 118px; } .subtask-wbs-arrow { display:none; } .subtask-wbs-progress { grid-column:1/-1; } }
+        @media (max-width:900px) { .subtask-wbs-row { grid-template-columns:minmax(0,1fr) 28px; } .subtask-wbs-dates { flex-wrap:wrap; } .subtask-wbs-dates .subtask-wbs-date { flex:1 1 118px; width:auto; } .subtask-wbs-arrow { display:inline; } .subtask-wbs-progress { grid-column:1/-1; } }
 
 
         /* ═════ TaskFlow v2 — couche d'harmonisation (visuel uniquement, JS intact) ═════ */
@@ -763,7 +772,7 @@
         // ═══════════════════════════════════════════════════════════════════════
         const TASKFLOW_SCHEMA = {
             Team: [{ id: 'nom', type: 'Text' }, { id: 'email', type: 'Text' }, { id: 'avatar', type: 'Text' }, { id: 'role', type: 'Choice' }, { id: 'actif', type: 'Bool' }, { id: 'couleur', type: 'Text' }],  // TEAM-01 (capaciteHebdo/indispos creees a la demande par le widget Plan)
-            Projects: [{ id: 'nom', type: 'Text' }, { id: 'couleur', type: 'Text' }, { id: 'dateDebut', type: 'Date' }, { id: 'dateFin', type: 'Date' }, { id: 'responsable', type: 'Ref:Team' }, { id: 'actif', type: 'Bool' }],
+            Projects: [{ id: 'nom', type: 'Text' }, { id: 'couleur', type: 'Text' }, { id: 'dateDebut', type: 'Date' }, { id: 'dateFin', type: 'Date' }, { id: 'responsable', type: 'Ref:Team' }, { id: 'actif', type: 'Bool' }, { id: 'ordre', type: 'Numeric' }],
             Tasks: [{ id: 'titre', type: 'Text' }, { id: 'description', type: 'Text' }, { id: 'dateDebut', type: 'Date' }, { id: 'dateEcheance', type: 'Date' }, { id: 'priorite', type: 'Choice' }, { id: 'statut', type: 'Choice' }, { id: 'progression', type: 'Numeric' }, { id: 'projet', type: 'Ref:Projects' }, { id: 'assignees', type: 'RefList:Team' }, { id: 'type', type: 'Choice' }, { id: 'dependDe', type: 'RefList:Tasks' }, { id: 'tags', type: 'ChoiceList' }, { id: 'estimationH', type: 'Numeric' }, { id: 'tempsPasse', type: 'Numeric' }, { id: 'couleur', type: 'Text' }, { id: 'subtasks', type: 'Text' }, { id: 'parentTask', type: 'Ref:Tasks' }]  // WBS-01: parentTask (charges/dateCloture creees a la demande par le widget Plan)
         };
         const PRIORITY_LABELS = { 1: 'Critique', 2: 'Haute', 3: 'Moyenne', 4: 'Basse' };
@@ -1178,6 +1187,7 @@
         let filters = { project: [], priority: [], assignee: [], status: [] };  // KAN-01: Ajout filtre statut
         let panelState = { open: false, isNew: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null };
         let sortableInstances = [];
+        let projectSortableInstance = null;
         let saveTimeout = null;
         let overlayPointerStart = { x: 0, y: 0 };  // B3: tracking pour distinguer clic réel vs drag-select
 
@@ -1391,7 +1401,51 @@
                 ]);
             } catch (e) { console.log('Seed error:', e); }
         }
-        async function loadAllData() { try { const _raw = await grist.docApi.fetchTable('Tasks'); TASK_COLS = new Set(Object.keys(_raw || {})); tasks = convertGristToRecords(_raw); } catch (e) { tasks = []; } try { team = convertGristToRecords(await grist.docApi.fetchTable('Team')); } catch (e) { team = []; } try { projects = convertGristToRecords(await grist.docApi.fetchTable('Projects')); } catch (e) { projects = []; } gristReady = true; rebuildChildrenCache(); try { statusCfg = await TF.loadStatusConfig(grist, 'Tasks', 'statut', tasks.map(t => t && t.statut)); } catch (e) {} updateFilterMenus(); render(); }
+        async function loadAllData() {
+            try { const _raw = await grist.docApi.fetchTable('Tasks'); TASK_COLS = new Set(Object.keys(_raw || {})); tasks = convertGristToRecords(_raw); } catch (e) { tasks = []; }
+            try { team = convertGristToRecords(await grist.docApi.fetchTable('Team')); } catch (e) { team = []; }
+            try { projects = convertGristToRecords(await grist.docApi.fetchTable('Projects')); } catch (e) { projects = []; }
+            // V3 : l'ordre des projets est conservé dans Projects.ordre.
+            projects = sortProjectsByOrder(projects);
+            if (gristReady || !projects.length) { /* rien */ }
+            gristReady = true;
+            rebuildChildrenCache();
+            try { statusCfg = await TF.loadStatusConfig(grist, 'Tasks', 'statut', tasks.map(t => t && t.statut)); } catch (e) {}
+            updateFilterMenus(); render();
+        }
+
+        function sortProjectsByOrder(list) {
+            return [...(list || [])].sort((a,b) => {
+                const ao = Number.isFinite(Number(a.ordre)) ? Number(a.ordre) : Number.POSITIVE_INFINITY;
+                const bo = Number.isFinite(Number(b.ordre)) ? Number(b.ordre) : Number.POSITIVE_INFINITY;
+                if (ao !== bo) return ao - bo;
+                return (a.id || 0) - (b.id || 0);
+            });
+        }
+
+        async function persistInitialProjectOrder() {
+            if (!gristReady || !projects.length || TF.isReadOnly()) return;
+            const missing = projects.filter(p => !Number.isFinite(Number(p.ordre)));
+            if (!missing.length) return;
+            try {
+                const actions = projects.map((p, i) => ['UpdateRecord','Projects',p.id,{ordre:(i+1)*1000}]);
+                await grist.docApi.applyUserActions(actions);
+                projects = projects.map((p,i) => ({...p, ordre:(i+1)*1000}));
+            } catch (e) { console.warn('Initialisation ordre projets impossible:', e); }
+        }
+
+        async function reorderProjectsByIds(orderedIds) {
+            const byId = new Map(projects.map(p => [Number(p.id), p]));
+            const ordered = orderedIds.map(id => byId.get(Number(id))).filter(Boolean);
+            const rest = projects.filter(p => !orderedIds.includes(Number(p.id)));
+            projects = [...ordered, ...rest];
+            const actions = projects.map((p,i) => ['UpdateRecord','Projects',p.id,{ordre:(i+1)*1000}]);
+            if (gristReady && !TF.isReadOnly()) {
+                try { await grist.docApi.applyUserActions(actions); showSaveIndicator(); }
+                catch (e) { showToast('Impossible d’enregistrer l’ordre des projets','error'); await loadAllData(); return; }
+            }
+            render();
+        }
 
         // ═══════════════════════════════════════════════════════════════════════
         // FILTERS
@@ -1405,8 +1459,8 @@
         }
         function applyPanelWidth() {
             const root = document.documentElement;
-            const wide = (groupBy === 'priorite' || groupBy === 'projet');
-            root.style.setProperty('--panel-width', wide ? '820px' : '520px');
+            // V3 : largeur constante du panneau, quel que soit le mode de regroupement.
+            root.style.setProperty('--panel-width', '820px');
         }
         function changeColorMode(mode) {
             colorMode = mode;
@@ -1504,21 +1558,22 @@
         function render() {
             sortableInstances.forEach(s => s.destroy());
             sortableInstances = [];
+            if (projectSortableInstance) { projectSortableInstance.destroy(); projectSortableInstance = null; }
             const container = document.getElementById('kanbanContainer');
             const ft = getFilteredTasks();
             const columns = buildColumns(ft);
             
             container.innerHTML = columns.map(col => `
-                <div class="kanban-column" data-key="${col.key}">
-                    <div class="column-header">
-                        <span class="column-title">${col.icon || ''} ${escapeHtml(col.label)} <span class="column-count">${col.tasks.length}</span></span>
-                        <button class="column-add" onclick="openCreatePanelForColumn('${col.key}')" title="Ajouter">+</button>
+                <div class="kanban-column ${groupBy === 'projet' && col.key !== 'none' ? 'project-column' : ''}" data-key="${col.key}">
+                    <div class="column-header ${groupBy === 'projet' && col.key !== 'none' ? 'project-drag-handle' : ''}" ${groupBy === 'projet' && col.key !== 'none' ? 'title="Faire glisser pour déplacer le projet"' : ''}>
+                        <span class="column-title">${col.icon || ''} <span class="project-title-text">${escapeHtml(col.label)}</span> <span class="column-count">${col.tasks.length}</span></span>
+                        <button class="column-add" onclick="event.stopPropagation();openCreatePanelForColumn('${col.key}')" title="Ajouter">+</button>
                     </div>
                     <div class="column-body ${col.tasks.length ? '' : 'is-empty'}" id="col-${col.key}">${col.tasks.length ? col.tasks.map(t => renderCard(t)).join('') : renderEmptyColumn(col)}</div>
                 </div>
             `).join('');
             
-            // Initialize Sortable
+            // Sortable des tâches
             columns.forEach(col => {
                 const el = document.getElementById(`col-${col.key}`);
                 if (el) {
@@ -1528,6 +1583,24 @@
                     }));
                 }
             });
+
+            // V3 : en regroupement Projet, les colonnes/projets eux-mêmes sont déplaçables.
+            if (groupBy === 'projet') {
+                projectSortableInstance = new Sortable(container, {
+                    animation: 180,
+                    draggable: '.project-column',
+                    handle: '.project-drag-handle',
+                    ghostClass: 'project-sortable-ghost',
+                    chosenClass: 'project-sortable-chosen',
+                    filter: '.column-add, .task-card, .column-body',
+                    preventOnFilter: true,
+                    onEnd: async (evt) => {
+                        if (evt.oldIndex === evt.newIndex) return;
+                        const ids = [...container.querySelectorAll('.project-column')].map(el => Number(el.dataset.key)).filter(Number.isFinite);
+                        await reorderProjectsByIds(ids);
+                    }
+                });
+            }
         }
 
         function renderEmptyColumn(col) {
@@ -1652,12 +1725,14 @@
         // ═══════════════════════════════════════════════════════════════════════
         function openPanel() { 
             panelState.open = true; 
+            document.body.classList.add('task-panel-open');
             document.getElementById('panel').classList.add('open'); 
             document.getElementById('kanbanContainer').classList.add('panel-open'); 
             document.getElementById('panelOverlay').classList.add('visible');
         }
         function closePanel() { 
             panelState.open = false; 
+            document.body.classList.remove('task-panel-open');
             document.getElementById('panel').classList.remove('open'); 
             document.getElementById('kanbanContainer').classList.remove('panel-open'); 
             document.getElementById('panelOverlay').classList.remove('visible');
@@ -1938,10 +2013,14 @@
                         const kp = getPriority(k);
                         const kprog = hasChildren(k) ? aggregateProgress(k) : (k.progression || 0);
                         return `<div class="subtask-wbs-row" onclick="if(!['INPUT','BUTTON'].includes(event.target.tagName)) openTaskPanel(${k.id})">
-                            <span class="subtask-wbs-title"><span style="display:inline-block;width:7px;height:28px;vertical-align:middle;border-radius:4px;background:${PRIORITY_COLORS[kp]};margin-right:7px"></span>↳ ${escapeHtml(k.titre) || 'Sans titre'}</span>
-                            <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateDebut))}" aria-label="Date de début" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
-                            <span class="subtask-wbs-arrow">→</span>
-                            <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateEcheance))}" aria-label="Date de fin" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
+                            <div class="subtask-wbs-main">
+                                <div class="subtask-wbs-title"><span style="display:inline-block;width:7px;height:28px;vertical-align:middle;border-radius:4px;background:${PRIORITY_COLORS[kp]};margin-right:7px"></span>↳ ${escapeHtml(k.titre) || 'Sans titre'}</div>
+                                <div class="subtask-wbs-dates">
+                                    <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateDebut))}" aria-label="Date de début" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateDebut', this.value)">
+                                    <span class="subtask-wbs-arrow">→</span>
+                                    <input class="subtask-wbs-date" type="date" value="${formatDateInput(gristToDate(k.dateEcheance))}" aria-label="Date de fin" onclick="event.stopPropagation()" onchange="updateChildDate(${k.id}, 'dateEcheance', this.value)">
+                                </div>
+                            </div>
                             <button class="subtask-menu-btn" title="Ouvrir la sous-tâche" onclick="event.stopPropagation();openTaskPanel(${k.id})">⋮</button>
                             <div class="subtask-wbs-mini"><div class="subtask-wbs-mini-bar"><div class="subtask-wbs-mini-fill" style="width:${Math.max(0,Math.min(100,kprog))}%"></div></div><span class="subtask-wbs-mini-pct">${kprog}%</span></div>
                         </div>`;
@@ -2264,7 +2343,7 @@
             // En lecture seule, on ne tente pas de creer le schema (ecritures bloquees).
             if (!TF.isReadOnly()) { try { await ensureSchema(); } catch (e) { console.error('ensureSchema error (continuing):', e); showToast('Schéma: ' + (e?.message || e), 'error'); } }
             try { CRA_ACTIVE = (await grist.docApi.listTables()).includes('TimeEntries'); } catch (e) {}
-            try { await loadAllData(); } catch (e) { console.error('loadAllData error (continuing):', e); showToast('Chargement: ' + (e?.message || e), 'error'); }
+            try { await loadAllData(); await persistInitialProjectOrder(); } catch (e) { console.error('loadAllData error (continuing):', e); showToast('Chargement: ' + (e?.message || e), 'error'); }
             try {
                 grist.onRecords(async () => await loadAllData());
                 grist.onRecord((rec) => { if (rec?.id && rec.id !== selectedTaskId) { selectedTaskId = rec.id; render(); } });
@@ -2416,6 +2495,18 @@
     </script>
 <style>
 /* 12 · Barre d'onglets mobile commune + bouton central */
+
+/* V3 : la navigation de suite reste au-dessus du panneau lorsqu'elle est demandée par ?nav. */
+@media (min-width: 561px) {
+  body.suite-nav .mobile-tabbar { display:flex; position:fixed; bottom:0; left:0; right:0; height:46px; background:var(--card-bg); border-top:1px solid var(--border); z-index:99998; align-items:center; justify-content:center; gap:6px; box-shadow:0 -3px 14px rgba(16,24,40,.08); }
+  body.suite-nav .mt-item { display:inline-flex; flex-direction:row; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:8px; font-size:.72rem; color:var(--text-muted); text-decoration:none; font-weight:600; background:transparent; border:1px solid transparent; }
+  body.suite-nav .mt-item.active { color:var(--primary); background:var(--primary-light); border-color:#d8e0ff; }
+  body.suite-nav .mt-fab { display:none; }
+  body.suite-nav .main-content { padding-bottom:46px; }
+  body.suite-nav .panel.open { padding-bottom:0; }
+  body.suite-nav.task-panel-open .mobile-tabbar { z-index:100000; }
+}
+
 .mobile-tabbar { display: none; }
 @media (max-width: 560px) {
   body.suite-nav .mobile-tabbar { display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 62px; background: var(--card-bg); border-top: 1px solid var(--border); z-index: 60; align-items: center; justify-content: space-around; box-shadow: 0 -4px 22px rgba(0,0,0,.10); padding-bottom: env(safe-area-inset-bottom, 0); }
