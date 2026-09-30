@@ -1334,6 +1334,9 @@
         const getChoiceListArray = (val) => { if (!val) return []; if (Array.isArray(val)) return val[0] === 'L' ? val.slice(1) : val; return []; };
         const toGristChoiceList = (arr) => arr && arr.length ? ['L', ...arr] : null;
         const getAssignees = (t) => getRefListArray(t?.assignees);
+        // V17: normalisation des références Grist (Ref vide = 0 / null selon le contexte)
+        const refId = (v) => { if (Array.isArray(v)) v = v.length > 1 && v[0] === 'L' ? v[1] : v[0]; const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+        const hasParentRef = (t) => !!refId(t?.parentTask);
         const getDependsOn = (t) => getRefListArray(t?.dependDe);
         const getTags = (t) => getChoiceListArray(t?.tags);
         const getPriority = (t) => (t?.priorite >= 1 && t?.priorite <= 4) ? parseInt(t.priorite) : 3;
@@ -1357,28 +1360,28 @@
             const cycleIds = new Set();
             for (const t of tasks) {
                 const seen = new Set([t.id]);
-                let cur = t.parentTask ? tasks.find(x => x.id === t.parentTask) : null;
+                let cur = refId(t.parentTask) ? tasks.find(x => Number(x.id) === refId(t.parentTask)) : null;
                 let guard = 0;
                 while (cur && guard++ < 128) {
                     if (seen.has(cur.id)) { cycleIds.add(t.id); break; }
                     seen.add(cur.id);
-                    cur = cur.parentTask ? tasks.find(x => x.id === cur.parentTask) : null;
+                    cur = hasParentRef(cur) ? tasks.find(x => Number(x.id) === refId(cur.parentTask)) : null;
                 }
             }
             if (cycleIds.size) console.warn('WBS: cycles detected on task ids:', [...cycleIds]);
             for (const t of tasks) {
-                const pid = t.parentTask;
-                if (pid && !isNaN(pid) && !cycleIds.has(t.id)) {
+                const pid = refId(t.parentTask);
+                if (pid && !cycleIds.has(t.id)) {
                     if (!childrenByParent.has(pid)) childrenByParent.set(pid, []);
                     childrenByParent.get(pid).push(t);
                 }
             }
         }
-        const isRoot = (t) => !t?.parentTask;
-        const getParent = (t) => t?.parentTask ? tasks.find(x => x.id === t.parentTask) : null;
+        const isRoot = (t) => !hasParentRef(t);
+        const getParent = (t) => hasParentRef(t) ? tasks.find(x => Number(x.id) === refId(t.parentTask)) : null;
         const getChildren = (id) => childrenByParent.get(id) || [];
         const hasChildren = (t) => t && getChildren(t.id).length > 0;
-        function getDepth(t) { let d = 0, cur = t, guard = 0; while (cur?.parentTask && guard++ < 32) { cur = tasks.find(x => x.id === cur.parentTask); d++; } return d; }
+        function getDepth(t) { let d = 0, cur = t, guard = 0; while (hasParentRef(cur) && guard++ < 32) { cur = tasks.find(x => Number(x.id) === refId(cur.parentTask)); d++; } return d; }
         function walkTree(roots, cb) {
             const stack = roots.map(r => ({ task: r, depth: 0 }));
             while (stack.length) {
@@ -1400,7 +1403,7 @@
             let cur = tasks.find(x => x.id === newParent), guard = 0;
             while (cur && guard++ < 64) {
                 if (cur.id === taskId) return false;
-                cur = cur.parentTask ? tasks.find(x => x.id === cur.parentTask) : null;
+                cur = hasParentRef(cur) ? tasks.find(x => Number(x.id) === refId(cur.parentTask)) : null;
             }
             return true;
         }
@@ -1605,12 +1608,12 @@
                 // #9 filtre de niveau (orthogonal a la hierarchie) : Actions = feuilles, Syntheses = parents.
                 if (workLevel === 'actions') { if (hasChildren(t)) return false; }
                 else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
-                // WBS-03 (niveau 'all' uniquement) : par défaut afficher uniquement les racines (pas les sous-tâches)
-                else if (!showSubtasks && t.parentTask) return false;
-                if (filters.project.length && !filters.project.includes(t.projet)) return false;
+                // V17: un Ref Grist vide peut être 0, null ou vide. Ne filtrer que les vraies références.
+                else if (!showSubtasks && hasParentRef(t)) return false;
+                if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) return false;
                 if (filters.priority.length && !filters.priority.includes(getPriority(t))) return false;
-                if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.includes(a))) return false;
-                if (filters.status.length && !filters.status.includes(t.statut || 'todo')) return false;
+                if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) return false;
+                if (filters.status.length && !filters.status.some(v => String(v) === String(t.statut || 'todo'))) return false;
                 if (searchQuery && !(t.titre||'').toLowerCase().includes(searchQuery)) return false;
                 return true;
             });
@@ -1862,11 +1865,11 @@
 
         function buildColumns(ft) {
             if (groupBy === 'statut') {
-                return statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: ft.filter(t => t.statut === s.value) }));
+                return statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: ft.filter(t => String(t.statut) === String(s.value)) }));
             } else if (groupBy === 'priorite') {
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
             } else if (groupBy === 'projet') {
-                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: ft.filter(t => t.projet === p.id) }));
+                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: ft.filter(t => Number(t.projet) === Number(p.id)) }));
                 cols.push({ key: 'none', label: 'Sans projet', icon: '', tasks: ft.filter(t => !t.projet) });
                 return cols;
             }
@@ -2109,35 +2112,11 @@
 
             try {
                 if (gristReady) {
-                    // Même ligne Tasks : on conserve explicitement le statut et les autres données.
-                    const data = cloneTaskData(task);
-                    data.parentTask = null;
-                    data.statut = originalStatus;
-
-                    const record = {
-                        titre: data.titre,
-                        description: data.description,
-                        type: data.type,
-                        priorite: data.priorite,
-                        statut: data.statut,
-                        progression: data.progression,
-                        dateDebut: data.dateDebut,
-                        dateEcheance: data.dateEcheance,
-                        projet: data.projet,
-                        assignees: toGristRefList(data.assignees),
-                        dependDe: toGristRefList(data.dependDe),
-                        tags: toGristChoiceList(data.tags),
-                        estimationH: data.estimationH,
-                        tempsPasse: data.tempsPasse,
-                        subtasks: subtasksToJson(data.subtasks),
-                        couleur: data.couleur || null,
-                        parentTask: null,
-                        charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))),
-                        dateCloture: data.dateCloture || null
-                    };
-
+                    // V17: la table Tasks est déjà correctement enregistrée.
+                    // On ne réécrit PAS toute la ligne : on détache uniquement la référence parentale.
+                    // Pour une colonne Ref Grist, 0 représente une référence vide de façon explicite.
                     await grist.docApi.applyUserActions([
-                        ['UpdateRecord', 'Tasks', taskId, record]
+                        ['UpdateRecord', 'Tasks', taskId, { parentTask: 0 }]
                     ]);
                     await loadAllData();
                 } else {
@@ -2151,7 +2130,7 @@
 
                 const refreshed = tasks.find(t => t.id === taskId);
                 if (!refreshed) throw new Error('La tâche transformée n’a pas été retrouvée après sauvegarde.');
-                if (refreshed.parentTask) throw new Error('La relation parentale n’a pas été supprimée.');
+                if (hasParentRef(refreshed)) throw new Error('La relation parentale n’a pas été supprimée.');
                 if (String(refreshed.statut || 'todo') !== String(originalStatus)) {
                     throw new Error('Le statut de la tâche transformée n’a pas été conservé.');
                 }
