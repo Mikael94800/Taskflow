@@ -2041,7 +2041,72 @@
             render();
             setTimeout(() => document.getElementById('taskTitle')?.focus(), 100);
         }
-        function detachFromParent() { updateField('parentTask', null); }
+        async function detachFromParent() {
+            // V14: Transformer une sous-tâche en tâche principale.
+            // On conserve toutes les autres données de la tâche et son projet.
+            if (panelState.isNew || !panelState.taskId || !gristReady) {
+                if (panelState.editData) {
+                    panelState.editData.parentTask = null;
+                    syncLocalTask();
+                    renderPanelTask();
+                    render();
+                }
+                return;
+            }
+
+            const taskId = panelState.taskId;
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            // Mémoriser le projet et les données locales avant la transformation.
+            const projectId = task.projet || panelState.editData?.projet || null;
+            if (panelState.editData) panelState.editData.parentTask = null;
+            task.parentTask = null;
+
+            try {
+                // On ne crée PAS une nouvelle ligne : la même tâche devient simplement racine.
+                await grist.docApi.applyUserActions([
+                    ['UpdateRecord', 'Tasks', taskId, { parentTask: null }]
+                ]);
+
+                // Recharger depuis Grist afin que la hiérarchie, les colonnes projet
+                // et la navigation utilisent immédiatement l'état réellement enregistré.
+                await loadAllData();
+                rebuildChildrenCache();
+
+                // Reprendre la tâche transformée, sans perdre son projet ni ses autres données.
+                const refreshed = tasks.find(t => t.id === taskId);
+                if (refreshed) {
+                    panelState.editData = cloneTaskData(refreshed);
+                    panelState.taskId = taskId;
+                    selectedTaskId = taskId;
+                    // Si le regroupement est par projet, on la replace dans la bonne colonne.
+                    if (groupBy === 'projet') {
+                        const key = projectId ? String(projectId) : 'none';
+                        const cols = getColumns();
+                        const col = cols.find(c => String(c.key) === key);
+                        if (col) {
+                            panelState.columnKey = key;
+                            panelState.columnTasks = col.tasks;
+                            panelState.taskIndex = col.tasks.findIndex(t => t.id === taskId);
+                        }
+                    }
+                }
+
+                renderPanelTask();
+                render();
+                showSaveIndicator();
+                showToast('La sous-tâche est maintenant une tâche principale', 'success');
+            } catch (e) {
+                // En cas d'échec, restaurer l'état local connu pour éviter une disparition visuelle.
+                task.parentTask = panelState.editData?.parentTask || null;
+                if (panelState.editData) panelState.editData.parentTask = task.parentTask;
+                renderPanelTask();
+                render();
+                console.error('Transformation sous-tâche → tâche principale:', e);
+                showToast('Impossible de transformer la sous-tâche', 'error');
+            }
+        }
         function setParent(newParentId) {
             if (panelState.taskId && !canSetParent(panelState.taskId, newParentId)) {
                 showToast('Cycle détecté — choix impossible', 'error');
