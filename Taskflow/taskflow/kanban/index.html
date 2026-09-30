@@ -235,6 +235,26 @@
         .card-avatar:first-child { margin-left: 0; }
         .card-avatar.more { background: var(--text-muted); }
 
+        /* V4 : interface compacte de tâche */
+        .panel-quick-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 10px}
+        .panel-quick-select,.panel-quick-btn{height:32px;min-height:32px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:8px;padding:0 10px;font:600 .72rem/1.1 inherit;box-sizing:border-box;cursor:pointer}
+        .panel-quick-select:hover,.panel-quick-btn:hover{border-color:var(--border-dark);background:var(--card-bg)}
+        .panel-quick-select:focus,.panel-quick-btn:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(62,93,231,.10)}
+        .panel-quick-select.priority{min-width:92px}.panel-quick-select.status{min-width:104px}.panel-quick-select.project{min-width:190px;max-width:280px}
+        .quick-assignee{position:relative;display:inline-flex}.quick-assignee .panel-quick-btn{min-width:112px}.quick-assignee-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;min-width:230px;max-height:280px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:500}.quick-assignee.open .quick-assignee-menu{display:block}
+        .quick-assignee-option{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:6px;font-size:.76rem;cursor:pointer}.quick-assignee-option:hover{background:var(--bg)}.quick-assignee-option input{margin:0}
+        .panel-quick-date{position:relative;height:32px;display:inline-flex;align-items:center}.panel-quick-date input{width:108px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font:600 .72rem/1 inherit;padding:0 8px 0 27px;box-sizing:border-box;cursor:pointer}.panel-quick-date:before{content:'📅';position:absolute;left:8px;font-size:12px;pointer-events:none;z-index:1}
+        .panel-quick-color{width:32px;height:32px;min-width:32px;padding:3px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);cursor:pointer;box-sizing:border-box}.panel-quick-color::-webkit-color-swatch-wrapper{padding:0}.panel-quick-color::-webkit-color-swatch{border:0;border-radius:6px}
+        .panel-quick-type{margin-bottom:12px}
+        .props-list .pr-status,.props-list .pr-priority,.props-list .pr-dates,.props-list .pr-project,.props-list .pr-assignees{display:none!important}
+        /* V4 : barre basse de navigation entre les tâches, indépendante du panneau */
+        .task-bottom-nav{position:fixed;left:0;right:0;bottom:10px;height:42px;z-index:100001;pointer-events:none;display:flex;align-items:center;justify-content:center}
+        .task-bottom-nav-inner{width:min(460px,calc(100vw - 24px));height:40px;display:flex;align-items:center;gap:10px;padding:0 8px;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.96);box-shadow:0 6px 20px rgba(15,23,42,.10);backdrop-filter:blur(8px);pointer-events:auto}
+        .task-bottom-nav-btn{width:30px;height:30px;border:1px solid var(--border);background:var(--card-bg);border-radius:7px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1}.task-bottom-nav-btn:hover{background:var(--bg);color:var(--text)}
+        .task-bottom-track{position:relative;flex:1;min-width:70px;height:6px;background:var(--border);border-radius:99px;overflow:hidden}.task-bottom-fill{height:100%;background:var(--primary);border-radius:99px}.task-bottom-label{min-width:48px;text-align:center;color:var(--text-muted);font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums}
+        body.task-panel-open .task-bottom-nav{right:var(--panel-width)}
+        @media(max-width:900px){body.task-panel-open .task-bottom-nav{right:0}}@media(max-width:560px){.panel-quick-select.project{min-width:150px;max-width:100%}.task-bottom-nav{bottom:68px}}
+
         /* Panel */
         .panel { position: absolute; top: 0; right: 0; width: var(--panel-width); height: 100%; background: var(--card-bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; z-index: 50; }
         .panel.open { transform: translateX(0); }
@@ -764,6 +784,7 @@
             <div class="panel-footer" id="panelFooter"></div>
         </div>
     </div>
+    <div class="task-bottom-nav" id="taskBottomNav" aria-label="Navigation entre les tâches" style="display:none"></div>
     <div class="save-indicator" id="saveIndicator">Enregistré</div>
     <div class="toast-container" id="toastContainer"></div>
     <script>
@@ -1555,6 +1576,16 @@
         // ═══════════════════════════════════════════════════════════════════════
         // RENDER
         // ═══════════════════════════════════════════════════════════════════════
+        function renderTaskBottomNav() {
+            const host=document.getElementById('taskBottomNav');
+            if(!host)return;
+            const ok=panelState.open&&!panelState.isNew&&panelState.columnTasks.length>1;
+            if(!ok){host.style.display='none';host.innerHTML='';return;}
+            const total=panelState.columnTasks.length,idx=Math.max(0,panelState.taskIndex),pct=total>1?(idx/(total-1))*100:0;
+            host.style.display='flex';
+            host.innerHTML=`<div class="task-bottom-nav-inner"><button class="task-bottom-nav-btn" onclick="navigatePanelTask(-1)" aria-label="Tâche précédente">‹</button><div class="task-bottom-track"><div class="task-bottom-fill" style="width:${pct}%"></div></div><span class="task-bottom-label">${idx+1} / ${total}</span><div class="task-bottom-track"><div class="task-bottom-fill" style="width:${pct}%"></div></div><button class="task-bottom-nav-btn" onclick="navigatePanelTask(1)" aria-label="Tâche suivante">›</button></div>`;
+        }
+
         function render() {
             sortableInstances.forEach(s => s.destroy());
             sortableInstances = [];
@@ -1601,6 +1632,7 @@
                     }
                 });
             }
+            renderTaskBottomNav();
         }
 
         function renderEmptyColumn(col) {
@@ -1729,6 +1761,7 @@
             document.getElementById('panel').classList.add('open'); 
             document.getElementById('kanbanContainer').classList.add('panel-open'); 
             document.getElementById('panelOverlay').classList.add('visible');
+            renderTaskBottomNav();
         }
         function closePanel() { 
             panelState.open = false; 
@@ -1738,6 +1771,7 @@
             document.getElementById('panelOverlay').classList.remove('visible');
             panelState = { open: false, isNew: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null, editData: null }; 
             selectedTaskId = null; 
+            renderTaskBottomNav();
             render(); 
         }
         // BUG-04 FIX: Confirmation avant fermeture si nouvelle tâche non sauvegardée
@@ -1858,6 +1892,14 @@
             return `${d.getDate()} ${months[d.getMonth()]}`;
         }
 
+        function toggleQuickAssignees(ev) {
+            if (ev) ev.stopPropagation();
+            const w=document.getElementById('quickAssigneeWrap');
+            if (!w) return;
+            document.querySelectorAll('.quick-assignee.open').forEach(x=>{if(x!==w)x.classList.remove('open')});
+            w.classList.toggle('open');
+        }
+
         function renderPanelTask() {
             const header = document.getElementById('panelHeader');
             const content = document.getElementById('panelContent');
@@ -1919,21 +1961,27 @@
 
             content.innerHTML = `
                 <div class="panel-accent-bar" style="background:${priorityColor}"></div>
-                <div class="panel-type-row">
-                    <span class="type-pill ${data.type === 'tache' ? 'selected' : ''}" onclick="updateField('type','tache')">Tâche</span>
-                    <span class="type-pill ${data.type === 'jalon' ? 'selected' : ''}" onclick="updateField('type','jalon')">◆ Jalon</span>
-                    <span class="type-pill ${data.type === 'reunion' ? 'selected' : ''}" onclick="updateField('type','reunion')"> Réunion</span>
-                </div>
-                ${currentProject ? `<div class="panel-crumb"><span class="pd" style="background:${projectColor}"></span>${escapeHtml(currentProject.nom)}</div>` : ''}
                 <input type="text" class="panel-title-edit" id="taskTitle" placeholder="${titlePlaceholder}" value="${escapeHtml(data.titre)}" oninput="updateField('titre', this.value, true)">
-                <div class="panel-meta-pills">
-                    <span class="panel-meta-pill"><span class="dot" style="background:${priorityColor}"></span>${escapeHtml(PRIORITY_LABELS[getPriority(data)] || 'Priorité')}</span>
-                    ${currentProject ? `<span class="panel-meta-pill"><span class="dot" style="background:${projectColor}"></span>${escapeHtml(currentProject.nom)}</span>` : ''}
-                    <span class="panel-meta-pill">${data.assignees.length ? `${data.assignees.length} ${data.assignees.length > 1 ? 'assignés' : 'assigné'}` : 'Non attribué'}</span>
-                    ${e ? `<span class="panel-meta-pill due">📅 ${formatDateShort(e)}</span>` : ''}
-                    <input class="tf-color-square" type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" title="Couleur de la tâche" aria-label="Couleur de la tâche">
+                <div class="panel-quick-row">
+                    <select class="panel-quick-select priority" onchange="updateField('priorite', this.value)" ${data.type === 'reunion' ? 'disabled' : ''} aria-label="Priorité">
+                        <option value="1" ${data.priorite == '1' ? 'selected' : ''}>● Critique</option><option value="2" ${data.priorite == '2' ? 'selected' : ''}>● Haute</option><option value="3" ${data.priorite == '3' ? 'selected' : ''}>● Moyenne</option><option value="4" ${data.priorite == '4' ? 'selected' : ''}>● Basse</option>
+                    </select>
+                    <select class="panel-quick-select status" onchange="updateField('statut', this.value)" aria-label="Statut">
+                        ${(data.type !== 'jalon' ? statusCfg.list : statusCfg.list.filter(st => st.value === statusCfg.firstValue || st.value === statusCfg.terminalValue)).map(st => `<option value="${escapeHtml(st.value)}" ${data.statut === st.value ? 'selected' : ''}>● ${escapeHtml(st.label)}</option>`).join('')}
+                    </select>
+                    <select class="panel-quick-select project" onchange="updateField('projet', parseInt(this.value) || null)" aria-label="Projet">
+                        <option value="">Aucun projet</option>${projectOptions}
+                    </select>
+                    <div class="quick-assignee" id="quickAssigneeWrap">
+                        <button type="button" class="panel-quick-btn" onclick="toggleQuickAssignees(event)">👤 ${data.assignees.length ? `${data.assignees.length} ${data.assignees.length > 1 ? 'assignés' : 'assigné'}` : 'Assigné'}⌄</button>
+                        <div class="quick-assignee-menu">${assigneesOptions || '<div style="padding:8px;font-size:.75rem;color:var(--text-muted)">Aucun membre</div>'}</div>
+                    </div>
+                    <label class="panel-quick-date" title="Date butoir"><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)" aria-label="Date butoir"></label>
+                    <input class="panel-quick-color" type="color" value="${data.couleur || getTaskColor(data)}" onchange="updateField('couleur', this.value)" title="Couleur de la tâche" aria-label="Couleur de la tâche">
                 </div>
-
+                <div class="panel-type-row panel-quick-type">
+                    <span class="type-pill ${data.type === 'tache' ? 'selected' : ''}" onclick="updateField('type','tache')">Tâche</span><span class="type-pill ${data.type === 'jalon' ? 'selected' : ''}" onclick="updateField('type','jalon')">◆ Jalon</span><span class="type-pill ${data.type === 'reunion' ? 'selected' : ''}" onclick="updateField('type','reunion')">Réunion</span>
+                </div>
                 <div class="props-list">
                     <div class="prop-row pr-status">
                         <span class="prop-label">Statut</span>
@@ -1942,7 +1990,7 @@
                         </div></div>
                     </div>
                     ${data.type !== 'reunion' ? `
-                    <div class="prop-row">
+                    <div class="prop-row pr-priority">
                         <span class="prop-label">Priorité</span>
                         <div class="prop-value"><div class="priority-selector">
                             <div class="priority-pill p1 ${data.priorite == '1' ? 'selected' : ''}" onclick="updateField('priorite','1')"><span class="panel-pill-dot" style="background:${PRIORITY_COLORS[1]}"></span>Critique</div>
@@ -1951,14 +1999,14 @@
                             <div class="priority-pill p4 ${data.priorite == '4' ? 'selected' : ''}" onclick="updateField('priorite','4')"><span class="panel-pill-dot" style="background:${PRIORITY_COLORS[4]}"></span>Basse</div>
                         </div></div>
                     </div>` : ''}
-                    <div class="prop-row">
+                    <div class="prop-row pr-dates">
                         <span class="prop-label">Date${data.type === 'jalon' ? '' : 's'}</span>
                         <div class="prop-value">${data.type === 'jalon'
                             ? `<div class="dates-inline"><input type="date" value="${formatDateInput(s)}" onchange="updateField('dateDebut', this.value); updateField('dateEcheance', this.value)"><button class="today-btn" onclick="setTodayDate()">Auj.</button></div>`
                             : `<div class="dates-inline"><input type="date" value="${formatDateInput(s)}" onchange="updateField('dateDebut', this.value)"><span class="dates-arrow">→</span><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)"><button class="today-btn" onclick="setTodayDate()">Auj.</button></div>`
                         }</div>
                     </div>
-                    <div class="prop-row">
+                    <div class="prop-row pr-project">
                         <span class="prop-label">Projet</span>
                         <div class="prop-value"><div class="project-select-wrap">
                             ${currentProject
@@ -1979,7 +2027,7 @@
                                 : `<select class="form-select" onchange="if(this.value)setParent(parseInt(this.value))"><option value="">— Tâche principale —</option>${tasks.filter(t => t.id !== panelState.taskId && canSetParent(panelState.taskId, t.id)).map(t => `<option value="${t.id}">${escapeHtml(t.titre)}</option>`).join('')}</select>`}
                         </div>
                     </div>` : ''}
-                    <div class="prop-row">
+                    <div class="prop-row pr-assignees">
                         <span class="prop-label">Attribué à</span>
                         <div class="prop-value">
                             ${data.assignees.length ? `<div class="asg-list">${data.assignees.map(id => { const nm = getTeamMemberName(id) || '?'; const initials = nm.split(' ').filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase(); const mem = team.find(x => x.id === id); return `<div class="asg"><span class="asg-ava" style="background:${getTeamMemberColor(id)}">${escapeHtml(initials)}</span><span class="an">${escapeHtml(nm)}</span>${mem && mem.role ? `<span class="ar">${escapeHtml(mem.role)}</span>` : ''}<button class="asg-x" title="Retirer" onclick="removeAssignee(${id})">×</button></div>`; }).join('')}</div>` : ''}
@@ -2407,6 +2455,7 @@
 
         // Events
         document.addEventListener('click', (e) => {
+            if (!e.target.closest('.quick-assignee')) document.querySelectorAll('.quick-assignee.open').forEach(x=>x.classList.remove('open'));
             if (!e.target.closest('.filter-dropdown')) document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open'));
             if (!e.target.closest('.multi-select')) document.querySelectorAll('.multi-select').forEach(s => s.classList.remove('open'));
             // Fermer les pickers couleur (Projects / Team) si clic extérieur
