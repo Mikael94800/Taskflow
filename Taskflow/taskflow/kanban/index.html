@@ -1603,20 +1603,29 @@
             const si = document.getElementById('searchInput'); if (si) si.value = '';
             updateFilterMenus(); broadcastFilters(); render();
         }
+        // V18 DIAGNOSTIC : le problème n'est plus l'enregistrement dans Tasks.
+        // On trace précisément pourquoi une tâche racine pourrait être exclue du Kanban.
         function getFilteredTasks() {
-            return tasks.filter(t => {
-                // #9 filtre de niveau (orthogonal a la hierarchie) : Actions = feuilles, Syntheses = parents.
-                if (workLevel === 'actions') { if (hasChildren(t)) return false; }
-                else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
-                // V17: un Ref Grist vide peut être 0, null ou vide. Ne filtrer que les vraies références.
-                else if (!showSubtasks && hasParentRef(t)) return false;
-                if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) return false;
-                if (filters.priority.length && !filters.priority.includes(getPriority(t))) return false;
-                if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) return false;
-                if (filters.status.length && !filters.status.some(v => String(v) === String(t.statut || 'todo'))) return false;
-                if (searchQuery && !(t.titre||'').toLowerCase().includes(searchQuery)) return false;
-                return true;
+            const debug = [];
+            const result = tasks.filter(t => {
+                const title = String(t?.titre || '');
+                const isDebugTask = /^test$/i.test(title.trim());
+                const root = !hasParentRef(t);
+                let reason = '';
+                // #9 filtre de niveau (orthogonal à la hiérarchie).
+                if (workLevel === 'actions' && hasChildren(t)) reason = 'workLevel=actions + possède des enfants';
+                else if (workLevel === 'parents' && !hasChildren(t)) reason = 'workLevel=parents + aucun enfant';
+                else if (!showSubtasks && hasParentRef(t)) reason = 'parentTask encore présent';
+                else if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) reason = 'filtre projet';
+                else if (filters.priority.length && !filters.priority.includes(getPriority(t))) reason = 'filtre priorité';
+                else if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) reason = 'filtre personne';
+                else if (filters.status.length && !filters.status.some(v => String(v) === String(t.statut || 'todo'))) reason = 'filtre statut';
+                else if (searchQuery && !title.toLowerCase().includes(searchQuery)) reason = 'recherche';
+                if (isDebugTask) debug.push({ id:t.id, titre:title, parentTask:t.parentTask, hasParent:hasParentRef(t), projet:t.projet, statut:t.statut, hasChildren:hasChildren(t), workLevel, showSubtasks, filters:JSON.parse(JSON.stringify(filters)), searchQuery, retenue:!reason, raison:reason });
+                return !reason;
             });
+            if (debug.length) console.info('[Taskflow V18] Diagnostic tâche TEST:', debug);
+            return result;
         }
         // #9 : change le niveau de travail affiche (persistance locale par widget, comme colorMode).
         function changeWorkLevel(v) {
@@ -1869,8 +1878,8 @@
             } else if (groupBy === 'priorite') {
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
             } else if (groupBy === 'projet') {
-                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: ft.filter(t => Number(t.projet) === Number(p.id)) }));
-                cols.push({ key: 'none', label: 'Sans projet', icon: '', tasks: ft.filter(t => !t.projet) });
+                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: ft.filter(t => refId(t.projet) === Number(p.id) || Number(t.projet) === Number(p.id)) }));
+                cols.push({ key: 'none', label: 'Sans projet', icon: '', tasks: ft.filter(t => !refId(t.projet) && !(Number(t.projet) > 0)) });
                 return cols;
             }
             return [];
