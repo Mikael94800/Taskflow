@@ -185,7 +185,7 @@
         .panel-quick-select:hover,.panel-quick-btn:hover{border-color:var(--border-dark);background:var(--card-bg)}
         .panel-quick-select:focus,.panel-quick-btn:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(62,93,231,.10)}
         .panel-quick-select.priority{min-width:92px}.panel-quick-select.status{min-width:104px}.panel-quick-select.project{min-width:190px;max-width:280px}
-        .quick-project{position:relative;display:inline-flex}.quick-project-btn{min-width:190px;max-width:280px;justify-content:flex-start}.quick-project-menu{display:none;position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:300px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:600}.quick-project.open .quick-project-menu{display:block}.quick-project-option{width:100%;display:flex;align-items:center;gap:8px;padding:8px 9px;border:0;background:transparent;border-radius:7px;color:var(--text);font:600 .74rem/1.2 inherit;cursor:pointer;text-align:left}.quick-project-option:hover{background:var(--primary-light)}.quick-project-dot{width:9px;height:9px;border-radius:3px;flex:0 0 9px;box-shadow:0 0 0 1px rgba(15,23,42,.08)}
+        .quick-project{position:relative;display:inline-flex}.quick-project-btn{min-width:190px;max-width:280px;justify-content:flex-start}.quick-project-btn.project-colored{border-color:transparent;color:var(--quick-project-text,#fff);background:var(--quick-project-bg,#94a3b8);box-shadow:0 1px 2px rgba(15,23,42,.10)}.quick-project-btn.project-colored:hover{background:var(--quick-project-bg,#94a3b8);color:var(--quick-project-text,#fff);filter:brightness(.96);border-color:transparent}.quick-project-btn.project-colored:focus{border-color:rgba(255,255,255,.85);box-shadow:0 0 0 2px rgba(62,93,231,.12)}.quick-project-menu{display:none;position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:300px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:600}.quick-project.open .quick-project-menu{display:block}.quick-project-option{width:100%;display:flex;align-items:center;gap:8px;padding:8px 9px;border:0;background:transparent;border-radius:7px;color:var(--text);font:600 .74rem/1.2 inherit;cursor:pointer;text-align:left}.quick-project-option:hover{background:var(--primary-light)}.quick-project-dot{width:9px;height:9px;border-radius:3px;flex:0 0 9px;box-shadow:0 0 0 1px rgba(15,23,42,.08)}
         .quick-assignee{position:relative;display:inline-flex}.quick-assignee .panel-quick-btn{min-width:112px}.quick-assignee-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;min-width:230px;max-height:280px;overflow:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);padding:6px;z-index:500}.quick-assignee.open .quick-assignee-menu{display:block}
         .quick-assignee-option{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:6px;font-size:.76rem;cursor:pointer}.quick-assignee-option:hover{background:var(--bg)}.quick-assignee-option input{margin:0}
         .panel-quick-date{position:relative;height:32px;display:inline-flex;align-items:center}.panel-quick-date input{width:108px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);font:600 .72rem/1 inherit;padding:0 8px 0 27px;box-sizing:border-box;cursor:pointer}.panel-quick-date:before{content:'📅';position:absolute;left:8px;font-size:12px;pointer-events:none;z-index:1}
@@ -227,6 +227,7 @@
         .panel-btn.success { background: var(--success); }
         .panel-btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
         .panel-btn.danger:hover { background: var(--danger); color: white; }
+        .transform-main-btn { width:auto; padding:6px 10px; font-size:0.72rem; font-weight:600; margin-top:6px; }
         .panel-section { margin-bottom: 12px; }
         .panel-section:last-child { margin-bottom: 0; }
         .panel-section-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: 0 -16px 12px -16px; background: linear-gradient(135deg, var(--bg) 0%, rgba(79,70,229,0.03) 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -1187,6 +1188,13 @@
         const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
         const getProjectName = (id) => { const p = projects.find(x => x.id === id); return p?.nom || ''; };
         const getProjectColor = (id) => { const p = projects.find(x => x.id === id); return p?.couleur || '#64748b'; };
+        const getProjectTextColor = (hex) => {
+            const h = String(hex || '#94a3b8').replace('#','');
+            const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+            const r = parseInt(full.slice(0,2),16) || 148, g = parseInt(full.slice(2,4),16) || 163, b = parseInt(full.slice(4,6),16) || 184;
+            const lum = (0.299*r + 0.587*g + 0.114*b);
+            return lum > 160 ? '#172033' : '#ffffff';
+        };
         const getTeamMemberName = (id) => { const m = team.find(x => x.id === id); return m?.nom || ''; };
         // TEAM-01: Couleur personnalisée par membre
         const getTeamMemberColor = (id) => { const m = team.find(x => x.id === id); return m?.couleur || '#3e5de7'; };  // Défaut: primary
@@ -1953,8 +1961,8 @@
                         ${(data.type !== 'jalon' ? statusCfg.list : statusCfg.list.filter(st => st.value === statusCfg.firstValue || st.value === statusCfg.terminalValue)).map(st => `<option value="${escapeHtml(st.value)}" ${data.statut === st.value ? 'selected' : ''}>● ${escapeHtml(st.label)}</option>`).join('')}
                     </select>
                     <div class="quick-project" id="quickProjectWrap">
-                        <button type="button" class="panel-quick-btn quick-project-btn" onclick="toggleQuickProject(event)" aria-haspopup="listbox" aria-label="Projet">
-                            <span class="quick-project-dot" style="background:${currentProject?.couleur || '#94a3b8'}"></span> ${escapeHtml(currentProject?.nom || 'Aucun projet')}⌄
+                        <button type="button" class="panel-quick-btn quick-project-btn ${currentProject ? 'project-colored' : ''}" style="${currentProject ? `--quick-project-bg:${projectColor};--quick-project-text:${getProjectTextColor(projectColor)}` : ''}" onclick="toggleQuickProject(event)" aria-haspopup="listbox" aria-label="Projet">
+                            <span class="quick-project-dot" style="background:${currentProject ? getProjectTextColor(projectColor) : '#94a3b8'};opacity:${currentProject ? '.9' : '1'}"></span> ${escapeHtml(currentProject?.nom || 'Aucun projet')}⌄
                         </button>
                         <div class="quick-project-menu" role="listbox">
                             <button type="button" class="quick-project-option" onclick="selectQuickProject('')"><span class="quick-project-dot" style="background:#94a3b8"></span>Aucun projet</button>
@@ -2010,7 +2018,7 @@
                         <div class="prop-value">
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                                 <span class="multi-select-chip" ${panelState.isNew ? '' : `onclick="openTaskPanel(${data.parentTask})"`} style="${panelState.isNew ? '' : 'cursor:pointer;'}background:var(--primary-light);color:var(--primary)">↑ ${escapeHtml((tasks.find(t => t.id === data.parentTask) || {}).titre || '(inconnu)')}</span>
-                                <button class="btn" style="padding:4px 10px;font-size:0.72rem" onclick="detachFromParent()">Transformer en tâche principale</button>
+                                <button class="panel-btn danger transform-main-btn" onclick="detachFromParent()">Transformer en tâche principale</button>
                             </div>
                         </div>
                     </div>` : ''}
