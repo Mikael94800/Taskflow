@@ -518,7 +518,7 @@
         .hdr-left h1 { white-space: nowrap; }
         .hdr-group { display: flex; align-items: center; gap: 8px; }
         .hdr-glabel { font-size: 0.72rem; color: var(--text-muted); font-weight: 550; white-space: nowrap; }
-        .hdr-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+        .hdr-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
         .hdr-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .hdr-sep { width: 1px; height: 22px; background: var(--border); flex: none; }
         .btn, .filter-btn { white-space: nowrap; }
@@ -653,8 +653,8 @@
         }
     
 /* V10 — bouton principal de gestion des projets */
-.btn.project-manager-main{background:#f0982d;color:#fff;border-color:#f0982d;font-weight:700;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;}
-.btn.project-manager-main:hover{background:#d97f17;border-color:#d97f17;}
+.btn.project-manager-main{background:#f0982d!important;color:#fff!important;border:1px solid #f0982d!important;font-weight:700!important;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:145px;height:34px;padding:0 12px;}
+.btn.project-manager-main:hover{background:#d97f17!important;border-color:#d97f17!important;}
 </style>
 
 <style id="taskflow-v9-project-manager">
@@ -711,6 +711,7 @@
                 <option value="actions">Niveau : Actions</option>
                 <option value="parents">Niveau : Synthèses</option>
             </select>
+            <button class="btn project-manager-main" onclick="openProjectManager()" title="Créer, renommer, colorer et réordonner les projets">⚙ Gérer les projets</button>
             <div class="filter-dropdown" id="moreDropdown">
                 <button class="btn icon-btn" onclick="toggleFilterMenu('more')" title="Plus d'actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></button>
                 <div class="filter-menu" id="filterMoreMenu" style="right:0;left:auto;min-width:200px">
@@ -720,7 +721,6 @@
                     <div class="filter-option" onclick="exportPNG()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Image PNG</div>
                 </div>
             </div>
-            <button class="btn project-manager-main" onclick="openProjectManager()" title="Créer, renommer, colorer et réordonner les projets">⚙ Gérer les projets</button>
    <button class="btn primary" onclick="openCreatePanel()">+ Tâche</button>
         </div>
     </div>
