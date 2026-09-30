@@ -2103,23 +2103,58 @@
 
             const previousParent = task.parentTask;
             const projectId = task.projet || panelState.editData?.projet || null;
+            const originalStatus = task.statut || 'todo';
             const btn = document.querySelector('.btn-transform-save');
             if (btn) { btn.disabled = true; btn.textContent = 'Enregistrement…'; }
 
             try {
                 if (gristReady) {
-                    // Même ligne Tasks : aucune duplication, aucune perte de projet ou de données.
+                    // Même ligne Tasks : on conserve explicitement le statut et les autres données.
+                    const data = cloneTaskData(task);
+                    data.parentTask = null;
+                    data.statut = originalStatus;
+
+                    const record = {
+                        titre: data.titre,
+                        description: data.description,
+                        type: data.type,
+                        priorite: data.priorite,
+                        statut: data.statut,
+                        progression: data.progression,
+                        dateDebut: data.dateDebut,
+                        dateEcheance: data.dateEcheance,
+                        projet: data.projet,
+                        assignees: toGristRefList(data.assignees),
+                        dependDe: toGristRefList(data.dependDe),
+                        tags: toGristChoiceList(data.tags),
+                        estimationH: data.estimationH,
+                        tempsPasse: data.tempsPasse,
+                        subtasks: subtasksToJson(data.subtasks),
+                        couleur: data.couleur || null,
+                        parentTask: null,
+                        charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))),
+                        dateCloture: data.dateCloture || null
+                    };
+
                     await grist.docApi.applyUserActions([
-                        ['UpdateRecord', 'Tasks', taskId, { parentTask: null }]
+                        ['UpdateRecord', 'Tasks', taskId, record]
                     ]);
                     await loadAllData();
                 } else {
                     task.parentTask = null;
-                    if (panelState.editData) panelState.editData.parentTask = null;
+                    task.statut = originalStatus;
+                    if (panelState.editData) {
+                        panelState.editData.parentTask = null;
+                        panelState.editData.statut = originalStatus;
+                    }
                 }
 
                 const refreshed = tasks.find(t => t.id === taskId);
                 if (!refreshed) throw new Error('La tâche transformée n’a pas été retrouvée après sauvegarde.');
+                if (refreshed.parentTask) throw new Error('La relation parentale n’a pas été supprimée.');
+                if (String(refreshed.statut || 'todo') !== String(originalStatus)) {
+                    throw new Error('Le statut de la tâche transformée n’a pas été conservé.');
+                }
 
                 selectedTaskId = taskId;
                 panelState.editData = cloneTaskData(refreshed);
