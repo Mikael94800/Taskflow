@@ -175,6 +175,8 @@
         .task-card.p3 { border-left-color: var(--info); }
         .task-card.p4 { border-left-color: var(--text-muted); }
         .task-card.done { opacity: 0.6; }
+        .task-card.drag-over-parent { outline: 2px dashed #3e5de7; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(62,93,231,.10); }
+        .task-card.dragging-to-parent { opacity: .55; }
         .task-card.sortable-ghost { opacity: 0.4; }
         .task-card.sortable-chosen { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
         .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
@@ -1364,6 +1366,16 @@
             if (['done','termine','terminé','completed','complete'].includes(low)) return 'done';
             return x;
         };
+        // V21 : l'interface Kanban utilise exclusivement 3 statuts français.
+        // Les valeurs internes Grist restent stables (todo / inprogress / done).
+        const KANBAN_STATUS_COLUMNS = [
+            { value: 'todo',       label: 'À faire',  fillColor: '#94a3b8', textColor: '#ffffff' },
+            { value: 'inprogress', label: 'En cours', fillColor: '#f59e0b', textColor: '#ffffff' },
+            { value: 'done',       label: 'Terminé',  fillColor: '#10b981', textColor: '#ffffff' }
+        ];
+        const KANBAN_STATUS_BY_VALUE = Object.fromEntries(KANBAN_STATUS_COLUMNS.map(s => [s.value, s]));
+        const getKanbanStatusLabel = (v) => KANBAN_STATUS_BY_VALUE[normalizeStatusValue(v)]?.label || 'À faire';
+
         const getPriority = (t) => {
             const raw = scalarChoice(t?.priorite);
             const n = Number(raw);
@@ -1600,14 +1612,14 @@
             renderPanelTask(); render();
         }
         function toggleFilterMenu(type) { document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open')); document.getElementById(`filter${type.charAt(0).toUpperCase() + type.slice(1)}Menu`).classList.toggle('open'); }
-        function fStatusLabel(v){ const sc = statusCfg.byValue[v]; return sc ? sc.label : v; }
+        function fStatusLabel(v){ return getKanbanStatusLabel(v); }
         function updateFilterMenus() {
             const grp = (label, html, first) => '<div class="fm-group-label'+(first?' first':'')+'">'+label+'</div>'+html;
             const projHtml = projects.length ? projects.map(p => `<div class="filter-option" onclick="toggleFilterValue('project', ${p.id})"><input type="checkbox" ${filters.project.includes(p.id)?'checked':''}><span style="color:${p.couleur}">●</span> ${escapeHtml(p.nom)}</div>`).join('') : '<div class="filter-option muted">Aucun projet</div>';
             const prioHtml = [1,2,3,4].map(p => `<div class="filter-option" onclick="toggleFilterValue('priority', ${p})"><input type="checkbox" ${filters.priority.includes(p)?'checked':''}><span style="color:${PRIORITY_COLORS[p]}">●</span> ${PRIORITY_LABELS[p]}</div>`).join('');
             const team2 = team.filter(m => m.actif !== false);
             const assHtml = team2.length ? team2.map(m => `<div class="filter-option" onclick="toggleFilterValue('assignee', ${m.id})"><input type="checkbox" ${filters.assignee.includes(m.id)?'checked':''}>${escapeHtml(m.nom)}</div>`).join('') : '<div class="filter-option muted">Aucun membre</div>';
-            const statHtml = statusCfg.list.map(sc => `<div class="filter-option" data-status="${escapeHtml(sc.value)}" onclick="toggleFilterValue('status', this.dataset.status)"><input type="checkbox" ${filters.status.includes(sc.value)?'checked':''}><span style="color:${sc.fillColor}">●</span> ${escapeHtml(sc.label)}</div>`).join('');
+            const statHtml = KANBAN_STATUS_COLUMNS.map(sc => `<div class="filter-option" data-status="${escapeHtml(sc.value)}" onclick="toggleFilterValue('status', this.dataset.status)"><input type="checkbox" ${filters.status.includes(sc.value)?'checked':''}><span style="color:${sc.fillColor}">●</span> ${escapeHtml(sc.label)}</div>`).join('');
             const total = filters.project.length + filters.priority.length + filters.assignee.length + filters.status.length;
             const menu = document.getElementById('filterAllMenu');
             if (menu) menu.innerHTML = grp('Projets', projHtml, true) + grp('Priorités', prioHtml) + grp('Assignés', assHtml) + grp('Statuts', statHtml) + (total ? '<div class="fm-foot"><span class="fm-clear" onclick="clearAllFilters()">Tout effacer</span></div>' : '');
@@ -1883,7 +1895,19 @@
                 if (el) {
                     sortableInstances.push(new Sortable(el, {
                         group: 'tasks', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-                        onEnd: (evt) => handleDrop(evt)
+                        onMove: (evt) => {
+                            document.querySelectorAll('.task-card.drag-over-parent').forEach(x => x.classList.remove('drag-over-parent'));
+                            const target = evt.related && evt.related.closest ? evt.related.closest('.task-card') : null;
+                            const draggedId = Number(evt.dragged?.dataset?.id);
+                            if (target && draggedId && Number(target.dataset.id) !== draggedId && !isDescendantTask(Number(target.dataset.id), draggedId)) {
+                                target.classList.add('drag-over-parent');
+                            }
+                            return true;
+                        },
+                        onEnd: (evt) => {
+                            document.querySelectorAll('.task-card.drag-over-parent').forEach(x => x.classList.remove('drag-over-parent'));
+                            handleDrop(evt);
+                        }
                     }));
                 }
             });
@@ -1945,14 +1969,15 @@
 
         function buildColumns(ft) {
             if (groupBy === 'statut') {
-                const cols = statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: ft.filter(t => String(normalizeStatusValue(t.statut)) === String(s.value)) }));
-                // V20 : si une ancienne valeur de Choice n'est pas presente dans la configuration
-                // actuelle, elle ne doit jamais disparaitre du Kanban. On cree une colonne de repli.
-                const known = new Set(statusCfg.list.map(s => String(s.value)));
-                const unknown = [];
-                ft.forEach(t => { const v = normalizeStatusValue(t.statut); if (v && !known.has(String(v)) && !unknown.includes(String(v))) unknown.push(String(v)); });
-                unknown.forEach(v => cols.push({ key: v, label: v, icon: '•', tasks: ft.filter(t => String(normalizeStatusValue(t.statut)) === v) }));
-                return cols;
+                // V21 : trois colonnes françaises fixes. Les anciennes variantes
+                // (todo, A faire, inprogress, En cours, done, Terminé...) sont
+                // normalisées vers les mêmes valeurs internes.
+                return KANBAN_STATUS_COLUMNS.map(s => ({
+                    key: s.value,
+                    label: s.label,
+                    icon: '',
+                    tasks: ft.filter(t => normalizeStatusValue(t.statut) === s.value)
+                }));
             } else if (groupBy === 'priorite') {
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
             } else if (groupBy === 'projet') {
@@ -2020,7 +2045,7 @@
                 }
             }
             const children = showSubtasks && !isChild ? getChildren(t.id) : [];
-            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
+            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" draggable="true" title="Glisser cette tâche sur une autre pour en faire une sous-tâche" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
@@ -2040,10 +2065,94 @@
             </div>`;
         }
 
+        function getTaskDropTarget(evt) {
+            const oe = evt && evt.originalEvent;
+            const target = oe && oe.target && oe.target.closest ? oe.target.closest('.task-card') : null;
+            if (!target) return null;
+            const id = Number(target.dataset.id);
+            return Number.isFinite(id) && id > 0 ? id : null;
+        }
+
+        function isDescendantTask(candidateId, ancestorId) {
+            let cur = tasks.find(t => Number(t.id) === Number(candidateId));
+            let guard = 0;
+            while (cur && hasParentRef(cur) && guard++ < 64) {
+                const pid = refId(cur.parentTask);
+                if (pid === Number(ancestorId)) return true;
+                cur = tasks.find(t => Number(t.id) === pid);
+            }
+            return false;
+        }
+
+        async function handleTaskDropOnTask(taskId, targetId) {
+            const task = tasks.find(t => Number(t.id) === Number(taskId));
+            const target = tasks.find(t => Number(t.id) === Number(targetId));
+            if (!task || !target || Number(task.id) === Number(target.id)) return false;
+
+            if (isDescendantTask(Number(target.id), Number(task.id))) {
+                showToast('Impossible : cette tâche est déjà dans la hiérarchie de la tâche déplacée.', 'error');
+                render();
+                return true;
+            }
+
+            const currentParent = refId(task.parentTask);
+            if (currentParent === Number(target.id)) {
+                showToast('Cette tâche est déjà une sous-tâche de cette tâche.', 'info');
+                render();
+                return true;
+            }
+
+            const ok = window.confirm(
+                `Transformer « ${task.titre || 'Sans titre'} » en sous-tâche de « ${target.titre || 'Sans titre'} » ?\n\n` +
+                `La tâche existante sera conservée avec son statut, sa progression, ses dates, son projet et ses personnes assignées.`
+            );
+            if (!ok) {
+                render();
+                return true;
+            }
+
+            try {
+                if (gristReady) {
+                    await grist.docApi.applyUserActions([
+                        ['UpdateRecord', 'Tasks', Number(task.id), { parentTask: Number(target.id) }]
+                    ]);
+                    await loadAllData();
+                } else {
+                    task.parentTask = Number(target.id);
+                }
+                showSaveIndicator();
+                showToast(`« ${task.titre || 'La tâche'} » est maintenant une sous-tâche de « ${target.titre || 'la tâche'} »`, 'success');
+            } catch (e) {
+                console.error('Transformation tâche → sous-tâche:', e);
+                showToast('Impossible de créer la sous-tâche', 'error');
+                await loadAllData();
+            }
+            render();
+            return true;
+        }
+
+        function markParentDropTarget(evt) {
+            const target = getTaskDropTarget(evt);
+            document.querySelectorAll('.task-card.drag-over-parent').forEach(el => el.classList.remove('drag-over-parent'));
+            if (!target) return;
+            const id = Number(evt.item?.dataset?.id);
+            if (!id || id === target || isDescendantTask(target, id)) return;
+            const el = document.querySelector(`.task-card[data-id="${target}"]`);
+            if (el) el.classList.add('drag-over-parent');
+        }
+
         async function handleDrop(evt) {
             const taskId = parseInt(evt.item.dataset.id);
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
+
+            // V21 : si le geste termine sur une carte, on propose de créer
+            // une relation parentTask au lieu de modifier statut/priorité/projet.
+            const targetId = getTaskDropTarget(evt);
+            if (targetId && targetId !== taskId) {
+                await handleTaskDropOnTask(taskId, targetId);
+                return;
+            }
 
             // Lire la colonne de destination depuis evt.to (le conteneur d'arrivée).
             // Utiliser col.key capturée en closure donnerait la source, pas la destination.
