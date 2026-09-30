@@ -651,7 +651,34 @@
             .demo-badge { color: #1f2738; }
             .toast { background: #060a14; }
         }
-    </style>
+    
+/* V10 — bouton principal de gestion des projets */
+.btn.project-manager-main{background:#f0982d;color:#fff;border-color:#f0982d;font-weight:700;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;}
+.btn.project-manager-main:hover{background:#d97f17;border-color:#d97f17;}
+</style>
+
+<style id="taskflow-v9-project-manager">
+.project-manager-overlay{position:fixed;inset:0;background:rgba(15,23,42,.38);backdrop-filter:blur(2px);z-index:1200;display:none;align-items:center;justify-content:center;padding:24px}
+.project-manager-overlay.open{display:flex}
+.project-manager{width:min(920px,96vw);max-height:min(760px,92vh);background:var(--card-bg);border:1px solid var(--border);border-radius:16px;box-shadow:0 28px 80px rgba(15,23,42,.28);display:flex;flex-direction:column;overflow:hidden}
+.project-manager-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);gap:12px}
+.project-manager-head h2{font-size:1.05rem;color:var(--text);margin:0}.project-manager-head p{font-size:.72rem;color:var(--text-muted);margin-top:3px}
+.project-manager-close{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);cursor:pointer;font-size:20px;color:var(--text-muted)}
+.project-manager-toolbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:10px}
+.project-manager-list{padding:10px 14px 14px;overflow:auto;min-height:180px}
+.pm-row{display:grid;grid-template-columns:28px 12px minmax(180px,1fr) 130px 82px 110px 34px;align-items:center;gap:10px;padding:10px 8px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);margin-bottom:7px;cursor:default}
+.pm-row:hover{border-color:var(--border-dark);background:var(--bg)}
+.pm-drag{cursor:grab;color:var(--text-light);font-size:18px;text-align:center;user-select:none}.pm-drag:active{cursor:grabbing}
+.pm-color{width:12px;height:12px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}
+.pm-name{font-weight:650;font-size:.8rem;min-width:0}.pm-name-sub{font-size:.65rem;color:var(--text-muted);margin-top:2px;font-weight:450}
+.pm-resp{font-size:.73rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pm-count{font-size:.7rem;color:var(--text-muted);text-align:center}.pm-status{font-size:.68rem;font-weight:650;text-align:center}.pm-status.active{color:#159a6b}.pm-status.inactive{color:var(--text-light)}
+.pm-actions{position:relative}.pm-action-btn{width:30px;height:30px;border:1px solid var(--border);background:var(--card-bg);border-radius:7px;cursor:pointer;color:var(--text-muted)}
+.pm-action-menu{position:absolute;right:0;top:34px;min-width:175px;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow-lg);z-index:30;display:none}.pm-action-menu.open{display:block}
+.pm-action-menu button{display:flex;width:100%;border:0;background:transparent;padding:8px 9px;border-radius:6px;cursor:pointer;color:var(--text);font-size:.73rem;text-align:left}.pm-action-menu button:hover{background:var(--bg)}.pm-action-menu button.danger{color:var(--danger)}
+.pm-editor{border-top:1px solid var(--border);padding:15px 16px;background:var(--surface-2);display:none}.pm-editor.open{display:block}.pm-editor-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.pm-editor-title strong{font-size:.82rem}.pm-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:10px}.pm-field{display:flex;flex-direction:column;gap:5px}.pm-field label{font-size:.66rem;color:var(--text-muted);font-weight:700}.pm-field input,.pm-field select{height:34px;border:1px solid var(--border-dark);border-radius:7px;background:var(--card-bg);color:var(--text);padding:0 9px;font-size:.75rem}.pm-color-row{display:flex;align-items:center;gap:8px}.pm-color-input{width:36px!important;padding:3px!important}.pm-swatches{display:flex;gap:5px;flex-wrap:wrap}.pm-swatch{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer}.pm-swatch.selected{border-color:var(--text);box-shadow:0 0 0 2px var(--card-bg)}.pm-editor-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:12px}.pm-editor-actions .btn{font-size:.73rem;padding:7px 11px}.pm-empty{padding:30px;text-align:center;color:var(--text-muted);font-size:.78rem}
+@media(max-width:760px){.pm-row{grid-template-columns:24px 12px minmax(120px,1fr) 34px 34px}.pm-resp,.pm-status{display:none}.pm-grid{grid-template-columns:1fr}.project-manager-overlay{padding:8px}}
+</style>
+
 </head>
 <body>
     <div class="header">
@@ -693,10 +720,37 @@
                     <div class="filter-option" onclick="exportPNG()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Image PNG</div>
                 </div>
             </div>
-            <button class="btn primary" onclick="openCreatePanel()">+ Tâche</button>
+            <button class="btn project-manager-main" onclick="openProjectManager()" title="Créer, renommer, colorer et réordonner les projets">⚙ Gérer les projets</button>
+   <button class="btn primary" onclick="openCreatePanel()">+ Tâche</button>
         </div>
     </div>
     <div class="filter-chips" id="filterChips" style="display:none"></div>
+    <div class="project-manager-overlay" id="projectManagerOverlay" onclick="if(event.target===this)closeProjectManager()">
+        <div class="project-manager" role="dialog" aria-modal="true" aria-labelledby="projectManagerTitle">
+            <div class="project-manager-head">
+                <div><h2 id="projectManagerTitle">Gérer les projets</h2><p>Créer, renommer, colorer, réordonner ou désactiver les projets du Kanban.</p></div>
+                <button class="project-manager-close" onclick="closeProjectManager()" aria-label="Fermer">×</button>
+            </div>
+            <div class="project-manager-toolbar">
+                <span style="font-size:.74rem;color:var(--text-muted)"><strong id="pmProjectCount">0</strong> projet(s)</span>
+                <button class="btn primary" onclick="openProjectEditor(null)">+ Nouveau projet</button>
+            </div>
+            <div class="project-manager-list" id="projectManagerList"></div>
+            <div class="pm-editor" id="projectEditor">
+                <div class="pm-editor-title"><strong id="pmEditorTitle">Nouveau projet</strong><button class="project-manager-close" style="width:28px;height:28px;font-size:16px" onclick="closeProjectEditor()">×</button></div>
+                <input type="hidden" id="pmEditId">
+                <div class="pm-grid">
+                    <div class="pm-field"><label>Nom du projet</label><input id="pmEditName" type="text" placeholder="Nom du projet..."></div>
+                    <div class="pm-field"><label>Responsable</label><select id="pmEditOwner"><option value="">Aucun responsable</option></select></div>
+                    <div class="pm-field"><label>État</label><select id="pmEditActive"><option value="true">Projet actif</option><option value="false">Projet inactif</option></select></div>
+                    <div class="pm-field" style="grid-column:1/-1"><label>Couleur du projet</label><div class="pm-color-row"><input id="pmEditColor" class="pm-color-input" type="color" value="#4f46e5" onchange="syncProjectColorInput(this.value)"><div class="pm-swatches" id="pmEditSwatches"></div><span id="pmColorHex" style="font-size:.7rem;color:var(--text-muted)">#4f46e5</span></div></div>
+                    <div class="pm-field"><label>Date de début</label><input id="pmEditStart" type="date"></div>
+                    <div class="pm-field"><label>Date de fin</label><input id="pmEditEnd" type="date"></div>
+                </div>
+                <div class="pm-editor-actions"><button class="btn" onclick="closeProjectEditor()">Annuler</button><button class="btn primary" onclick="saveProjectEditor()">Enregistrer</button></div>
+            </div>
+        </div>
+    </div>
     <div class="main-content">
         <div class="kanban-container" id="kanbanContainer"></div>
         <!-- BUG-04 FIX: Overlay pour confirmer avant de fermer le panel -->
@@ -1502,6 +1556,91 @@
             updateFilterMenus();
             render();
         }
+
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // V9 — GESTION DES PROJETS
+        // ═══════════════════════════════════════════════════════════════════════
+        let projectEditorId = null;
+        const PROJECT_MANAGER_COLORS = ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#ec4899','#64748b','#0ea5e9','#f97316','#14b8a6'];
+        function openProjectManager(){
+            const overlay=document.getElementById('projectManagerOverlay'); if(!overlay)return;
+            closeMoreMenus(); overlay.classList.add('open'); renderProjectManager();
+        }
+        function closeProjectManager(){ const overlay=document.getElementById('projectManagerOverlay'); if(overlay)overlay.classList.remove('open'); closeProjectEditor(); }
+        function closeProjectEditor(){ const ed=document.getElementById('projectEditor'); if(ed)ed.classList.remove('open'); projectEditorId=null; }
+        function closeMoreMenus(){ document.querySelectorAll('.filter-menu.open').forEach(x=>x.classList.remove('open')); document.querySelectorAll('.pm-action-menu.open').forEach(x=>x.classList.remove('open')); }
+        function projectTaskCount(pid){ return tasks.filter(t=>Number(t.projet)===Number(pid)).length; }
+        function projectDateInput(v){ const d=gristToDate(v); return d?formatDateInput(d):''; }
+        function renderProjectManager(){
+            const list=document.getElementById('projectManagerList'); if(!list)return;
+            document.getElementById('pmProjectCount').textContent=projects.length;
+            if(!projects.length){list.innerHTML='<div class="pm-empty">Aucun projet. Créez votre premier projet.</div>';return;}
+            list.innerHTML=projects.map(p=>{
+                const count=projectTaskCount(p.id), owner=team.find(m=>Number(m.id)===Number(p.responsable));
+                const color=p.couleur||'#94a3b8';
+                return `<div class="pm-row" data-project-id="${p.id}">
+                    <div class="pm-drag" title="Faire glisser pour réordonner">☷</div>
+                    <span class="pm-color" style="background:${color}"></span>
+                    <div class="pm-name">${escapeHtml(p.nom||'Sans nom')}<div class="pm-name-sub">${count} tâche${count>1?'s':''}</div></div>
+                    <div class="pm-resp">${owner?escapeHtml(owner.nom):'Aucun responsable'}</div>
+                    <div class="pm-count">${Number(p.ordre)||'—'}</div>
+                    <div class="pm-status ${p.actif===false?'inactive':'active'}">${p.actif===false?'Inactif':'Actif'}</div>
+                    <div class="pm-actions"><button class="pm-action-btn" onclick="toggleProjectActionMenu(event,${p.id})">⋮</button><div class="pm-action-menu" id="pm-menu-${p.id}">
+                        <button onclick="openProjectEditor(${p.id})">✎ Modifier</button>
+                        <button onclick="quickProjectColor(${p.id})">● Changer la couleur</button>
+                        <button onclick="toggleProjectActive(${p.id})">${p.actif===false?'✓ Réactiver':'⏸ Désactiver'}</button>
+                        <button class="danger" onclick="deleteProject(${p.id})">⌫ Supprimer</button>
+                    </div></div>
+                </div>`;
+            }).join('');
+            const host=list;
+            if(window.Sortable){
+                if(host._pmSortable) host._pmSortable.destroy();
+                host._pmSortable=new Sortable(host,{animation:160,draggable:'.pm-row',handle:'.pm-drag',ghostClass:'project-sortable-ghost',onEnd:async()=>{
+                    const ids=[...host.querySelectorAll('.pm-row')].map(el=>Number(el.dataset.projectId)).filter(Number.isFinite); await reorderProjectsByIds(ids); renderProjectManager(); render();
+                }});
+            }
+        }
+        function toggleProjectActionMenu(ev,id){ ev.stopPropagation(); document.querySelectorAll('.pm-action-menu.open').forEach(x=>x.classList.remove('open')); document.getElementById('pm-menu-'+id)?.classList.add('open'); }
+        function syncProjectColorInput(v){ const i=document.getElementById('pmEditColor'), h=document.getElementById('pmColorHex'); if(i)i.value=v; if(h)h.textContent=String(v).toUpperCase(); document.querySelectorAll('.pm-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color===v)); }
+        function openProjectEditor(id){
+            projectEditorId=id===null?null:Number(id); const p=projectEditorId===null?null:projects.find(x=>Number(x.id)===projectEditorId); const ed=document.getElementById('projectEditor'); if(!ed)return;
+            document.querySelectorAll('.pm-action-menu.open').forEach(x=>x.classList.remove('open')); ed.classList.add('open');
+            document.getElementById('pmEditorTitle').textContent=p?'Modifier le projet':'Nouveau projet';
+            document.getElementById('pmEditId').value=p?p.id:''; document.getElementById('pmEditName').value=p?.nom||''; document.getElementById('pmEditActive').value=p?.actif===false?'false':'true';
+            document.getElementById('pmEditStart').value=projectDateInput(p?.dateDebut); document.getElementById('pmEditEnd').value=projectDateInput(p?.dateFin);
+            const owner=document.getElementById('pmEditOwner'); owner.innerHTML='<option value="">Aucun responsable</option>'+team.filter(m=>m.actif!==false).map(m=>`<option value="${m.id}" ${p&&Number(p.responsable)===Number(m.id)?'selected':''}>${escapeHtml(m.nom)}</option>`).join('');
+            const color=p?.couleur||PROJECT_MANAGER_COLORS[0]; document.getElementById('pmEditColor').value=color; syncProjectColorInput(color);
+            document.getElementById('pmEditSwatches').innerHTML=PROJECT_MANAGER_COLORS.map(c=>`<span class="pm-swatch ${c===color?'selected':''}" data-color="${c}" style="background:${c}" onclick="syncProjectColorInput('${c}')" title="${c}"></span>`).join('');
+            setTimeout(()=>document.getElementById('pmEditName')?.focus(),0);
+        }
+        function dateFromInput(v){ return v?dateToGrist(parseInputDate(v)):null; }
+        async function saveProjectEditor(){
+            const name=(document.getElementById('pmEditName')?.value||'').trim(); if(!name){showToast('Nom du projet obligatoire','error');return;}
+            const idVal=document.getElementById('pmEditId')?.value; const color=document.getElementById('pmEditColor')?.value||'#4f46e5'; const ownerVal=document.getElementById('pmEditOwner')?.value; const active=document.getElementById('pmEditActive')?.value!=='false';
+            const record={nom:name,couleur:color,responsable:ownerVal?Number(ownerVal):null,actif:active,dateDebut:dateFromInput(document.getElementById('pmEditStart')?.value),dateFin:dateFromInput(document.getElementById('pmEditEnd')?.value)};
+            try{
+                if(gristReady){
+                    if(idVal) await grist.docApi.applyUserActions([['UpdateRecord','Projects',Number(idVal),record]]); else { const r=await grist.docApi.applyUserActions([['AddRecord','Projects',null,{...record,ordre:(projects.length+1)*1000}]]); record.id=Array.isArray(r?.retValues)?r.retValues[0]:null; }
+                }
+                if(idVal){ const p=projects.find(x=>Number(x.id)===Number(idVal)); if(p)Object.assign(p,record,{id:p.id}); }
+                else { const nextId=projects.reduce((m,p)=>Math.max(m,Number(p.id)||0),0)+1; projects.push({...record,id:record.id||nextId,ordre:(projects.length+1)*1000}); }
+                projects=sortProjectsByOrder(projects); closeProjectEditor(); renderProjectManager(); updateFilterMenus(); render(); showToast(idVal?'Projet modifié':'Projet créé','success');
+            }catch(e){console.error(e);showToast('Impossible d’enregistrer le projet','error');}
+        }
+        async function toggleProjectActive(id){
+            const p=projects.find(x=>Number(x.id)===Number(id)); if(!p)return; const next=p.actif===false; 
+            try{ if(gristReady)await grist.docApi.applyUserActions([['UpdateRecord','Projects',p.id,{actif:next}]]); p.actif=next; renderProjectManager(); updateFilterMenus(); render(); showToast(next?'Projet réactivé':'Projet désactivé','success'); }catch(e){showToast('Impossible de modifier le projet','error');}
+        }
+        async function quickProjectColor(id){ const p=projects.find(x=>Number(x.id)===Number(id)); if(!p)return; const current=p.couleur||PROJECT_MANAGER_COLORS[0]; const idx=PROJECT_MANAGER_COLORS.indexOf(current); const next=PROJECT_MANAGER_COLORS[(idx+1+PROJECT_MANAGER_COLORS.length)%PROJECT_MANAGER_COLORS.length]; try{if(gristReady)await grist.docApi.applyUserActions([['UpdateRecord','Projects',p.id,{couleur:next}]]);p.couleur=next;renderProjectManager();render();showToast('Couleur mise à jour','success');}catch(e){showToast('Impossible de changer la couleur','error');} }
+        async function deleteProject(id){
+            const p=projects.find(x=>Number(x.id)===Number(id)); if(!p)return; const count=projectTaskCount(id);
+            if(count>0){showToast(`Impossible de supprimer « ${p.nom} » : ${count} tâche${count>1?'s':''} y est liée. Désattribuez-les ou transférez-les d’abord.`,'error');return;}
+            if(!confirm(`Supprimer le projet « ${p.nom} » ?`))return;
+            try{if(gristReady)await grist.docApi.applyUserActions([['RemoveRecord','Projects',p.id]]);projects=projects.filter(x=>Number(x.id)!==Number(id));renderProjectManager();updateFilterMenus();render();showToast('Projet supprimé','success');}catch(e){showToast('Impossible de supprimer le projet','error');}
+        }
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('projectManagerOverlay')?.classList.contains('open'))closeProjectManager();});
 
         // ═══════════════════════════════════════════════════════════════════════
         // RENDER
