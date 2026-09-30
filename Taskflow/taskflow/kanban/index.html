@@ -1344,7 +1344,39 @@
         const hasParentRef = (t) => !!refId(t?.parentTask);
         const getDependsOn = (t) => getRefListArray(t?.dependDe);
         const getTags = (t) => getChoiceListArray(t?.tags);
-        const getPriority = (t) => (t?.priorite >= 1 && t?.priorite <= 4) ? parseInt(t.priorite) : 3;
+        // V20 : normalisation robuste des valeurs Choice Grist.
+        // Certaines lignes historiques peuvent contenir par exemple "L,Moyenne",
+        // "Moyenne" ou une valeur tableau au lieu du code numerique attendu.
+        const scalarChoice = (v) => {
+            if (Array.isArray(v)) {
+                if (v[0] === 'L') return v.length > 1 ? v[1] : '';
+                return v.length ? v[0] : '';
+            }
+            return v == null ? '' : v;
+        };
+        const normalizeStatusValue = (v) => {
+            let x = String(scalarChoice(v) || '').trim();
+            if (x.startsWith('L,')) x = x.slice(2).trim();
+            const low = x.toLowerCase();
+            if (['todo','a faire','à faire','a_faire','afaire'].includes(low)) return 'todo';
+            if (['inprogress','in progress','en cours','encours'].includes(low)) return 'inprogress';
+            if (['review','en revue','enrevue'].includes(low)) return 'review';
+            if (['done','termine','terminé','completed','complete'].includes(low)) return 'done';
+            return x;
+        };
+        const getPriority = (t) => {
+            const raw = scalarChoice(t?.priorite);
+            const n = Number(raw);
+            if (Number.isFinite(n) && n >= 1 && n <= 4) return Math.round(n);
+            let x = String(raw || '').trim();
+            if (x.startsWith('L,')) x = x.slice(2).trim();
+            const low = x.toLowerCase();
+            if (low.includes('critique')) return 1;
+            if (low.includes('haute') || low.includes('high')) return 2;
+            if (low.includes('moyenne') || low.includes('medium')) return 3;
+            if (low.includes('basse') || low.includes('low')) return 4;
+            return 3;
+        };
         function getTaskColor(t) {
             if (t?.couleur && /^#[0-9a-f]{3,8}$/i.test(t.couleur)) return t.couleur;
             switch (colorMode) {
@@ -1624,7 +1656,7 @@
                 else if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) reason = 'filtre projet';
                 else if (filters.priority.length && !filters.priority.includes(getPriority(t))) reason = 'filtre priorité';
                 else if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) reason = 'filtre personne';
-                else if (filters.status.length && !filters.status.some(v => String(v) === String(t.statut || 'todo'))) reason = 'filtre statut';
+                else if (filters.status.length && !filters.status.some(v => String(v) === String(normalizeStatusValue(t.statut) || 'todo'))) reason = 'filtre statut';
                 else if (searchQuery && !title.toLowerCase().includes(searchQuery)) reason = 'recherche';
                 if (isDebugTask) debug.push({ id:t.id, titre:title, parentTask:t.parentTask, hasParent:hasParentRef(t), projet:t.projet, statut:t.statut, hasChildren:hasChildren(t), workLevel, showSubtasks, filters:JSON.parse(JSON.stringify(filters)), searchQuery, retenue:!reason, raison:reason });
                 return !reason;
@@ -1820,7 +1852,7 @@
             el.innerHTML = `<strong>Diagnostic V19 — TEST</strong><button onclick="this.parentElement.remove()">×</button><br>
                 ID : <span class="mono">${test.id}</span> · parentTask : <span class="mono">${String(test.parentTask ?? 'vide')}</span><br>
                 Projet : <span class="mono">${String(test.projet ?? 'vide')}</span> · ${project ? escapeHtml(project.nom || '') : 'projet introuvable'} · actif : ${project ? String(project.actif !== false) : 'non'}<br>
-                Statut : <span class="mono">${escapeHtml(String(test.statut ?? 'vide'))}</span> · Progression : ${Number(test.progression)||0}%<br>
+                Statut : <span class="mono">${escapeHtml(String(test.statut ?? 'vide'))}</span> → normalisé : <span class="mono">${escapeHtml(String(normalizeStatusValue(test.statut) || 'vide'))}</span> · Progression : ${Number(test.progression)||0}%<br>
                 Chargée dans Tasks : <span class="ok">OUI</span> · retenue par filtre : <span class="${inFiltered?'ok':'bad'}">${inFiltered?'OUI':'NON'}</span> · présente dans une colonne : <span class="${inColumn?'ok':'bad'}">${inColumn?'OUI':'NON'}</span><br>
                 <strong>Diagnostic : ${escapeHtml(reason)}</strong>`;
             document.body.appendChild(el);
@@ -1913,7 +1945,14 @@
 
         function buildColumns(ft) {
             if (groupBy === 'statut') {
-                return statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: ft.filter(t => String(t.statut) === String(s.value)) }));
+                const cols = statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: ft.filter(t => String(normalizeStatusValue(t.statut)) === String(s.value)) }));
+                // V20 : si une ancienne valeur de Choice n'est pas presente dans la configuration
+                // actuelle, elle ne doit jamais disparaitre du Kanban. On cree une colonne de repli.
+                const known = new Set(statusCfg.list.map(s => String(s.value)));
+                const unknown = [];
+                ft.forEach(t => { const v = normalizeStatusValue(t.statut); if (v && !known.has(String(v)) && !unknown.includes(String(v))) unknown.push(String(v)); });
+                unknown.forEach(v => cols.push({ key: v, label: v, icon: '•', tasks: ft.filter(t => String(normalizeStatusValue(t.statut)) === v) }));
+                return cols;
             } else if (groupBy === 'priorite') {
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
             } else if (groupBy === 'projet') {
@@ -1925,8 +1964,8 @@
         }
 
         function renderSubtaskPreview(t, depth = 0) {
-            const done = TF.isTerminal(statusCfg, t.statut) || Number(t.progression || 0) >= 100;
-            const stateClass = done ? 'done' : (String(t.statut || '') === 'inprogress' ? 'inprogress' : 'pending');
+            const done = TF.isTerminal(statusCfg, normalizeStatusValue(t.statut)) || Number(t.progression || 0) >= 100;
+            const stateClass = done ? 'done' : (normalizeStatusValue(t.statut) === 'inprogress' ? 'inprogress' : 'pending');
             const stateLabel = done ? '✓ Terminée' : (stateClass === 'inprogress' ? 'En cours' : 'À venir');
             const prog = Math.max(0, Math.min(100, Number(t.progression || 0)));
             const d0 = t.dateDebut ? gristToDate(t.dateDebut) : null;
