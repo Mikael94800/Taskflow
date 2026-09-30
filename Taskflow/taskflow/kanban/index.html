@@ -701,6 +701,11 @@
 /* V10 — bouton principal de gestion des projets */
 .btn.project-manager-main{background:#f0982d!important;color:#fff!important;border:1px solid #f0982d!important;font-weight:700!important;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:145px;height:34px;padding:0 12px;}
 .btn.project-manager-main:hover{background:#d97f17!important;border-color:#d97f17!important;}
+
+/* V19 diagnostic visible */
+.tf-v19-diag { position: fixed; top: 72px; right: 18px; z-index: 99990; max-width: 520px; background: #fff; border: 2px solid #f59e0b; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 10px 12px; font: 12px/1.45 system-ui,sans-serif; color:#172033; }
+.tf-v19-diag strong { font-size:13px; } .tf-v19-diag .ok { color:#15803d; font-weight:700; } .tf-v19-diag .bad { color:#b91c1c; font-weight:700; } .tf-v19-diag .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tf-v19-diag button { margin-left:8px; border:0; background:#172033; color:#fff; border-radius:6px; padding:3px 7px; cursor:pointer; }
 </style>
 
 <style id="taskflow-v9-project-manager">
@@ -1603,7 +1608,7 @@
             const si = document.getElementById('searchInput'); if (si) si.value = '';
             updateFilterMenus(); broadcastFilters(); render();
         }
-        // V18 DIAGNOSTIC : le problème n'est plus l'enregistrement dans Tasks.
+        // V19 DIAGNOSTIC : le problème n'est plus l'enregistrement dans Tasks.
         // On trace précisément pourquoi une tâche racine pourrait être exclue du Kanban.
         function getFilteredTasks() {
             const debug = [];
@@ -1624,7 +1629,7 @@
                 if (isDebugTask) debug.push({ id:t.id, titre:title, parentTask:t.parentTask, hasParent:hasParentRef(t), projet:t.projet, statut:t.statut, hasChildren:hasChildren(t), workLevel, showSubtasks, filters:JSON.parse(JSON.stringify(filters)), searchQuery, retenue:!reason, raison:reason });
                 return !reason;
             });
-            if (debug.length) console.info('[Taskflow V18] Diagnostic tâche TEST:', debug);
+            if (debug.length) console.warn('[Taskflow V19] Diagnostic tâche TEST:', debug);
             return result;
         }
         // #9 : change le niveau de travail affiche (persistance locale par widget, comme colorMode).
@@ -1788,6 +1793,39 @@
             }
         }
 
+        function renderV19Diagnostic(ft, columns) {
+            const old = document.getElementById('tfV19Diag');
+            if (old) old.remove();
+            const test = tasks.find(t => String(t?.titre || '').trim().toLowerCase() === 'test');
+            if (!test) return;
+            const pid = refId(test.projet) || Number(test.projet) || null;
+            const project = pid ? projects.find(p => Number(p.id) === Number(pid)) : null;
+            const inFiltered = !!(ft || []).some(t => Number(t.id) === Number(test.id));
+            const inColumn = !!(columns || []).some(c => (c.tasks || []).some(t => Number(t.id) === Number(test.id)));
+            let reason = 'Aucune exclusion détectée';
+            if (!inFiltered) {
+                if (workLevel === 'actions' && hasChildren(test)) reason = 'Niveau = actions : TEST possède des enfants';
+                else if (workLevel === 'parents' && !hasChildren(test)) reason = 'Niveau = parents : TEST n’a aucun enfant';
+                else if (!showSubtasks && hasParentRef(test)) reason = 'parentTask encore présent';
+                else if (filters.project.length && !filters.project.some(v => Number(v) === Number(test.projet))) reason = 'filtre projet';
+                else if (filters.priority.length && !filters.priority.includes(getPriority(test))) reason = 'filtre priorité';
+                else if (filters.assignee.length && !getAssignees(test).some(a => filters.assignee.some(v => Number(v) === Number(a)))) reason = 'filtre personne';
+                else if (filters.status.length && !filters.status.some(v => String(v) === String(test.statut || 'todo'))) reason = 'filtre statut';
+                else if (searchQuery && !String(test.titre || '').toLowerCase().includes(searchQuery)) reason = 'recherche';
+                else reason = 'exclue par une logique non identifiée';
+            } else if (!inColumn) {
+                reason = project && project.actif !== false ? 'TEST est filtrée mais n’entre dans aucune colonne' : 'Le projet de TEST est absent ou inactif dans Projects';
+            }
+            const el=document.createElement('div'); el.id='tfV19Diag'; el.className='tf-v19-diag';
+            el.innerHTML = `<strong>Diagnostic V19 — TEST</strong><button onclick="this.parentElement.remove()">×</button><br>
+                ID : <span class="mono">${test.id}</span> · parentTask : <span class="mono">${String(test.parentTask ?? 'vide')}</span><br>
+                Projet : <span class="mono">${String(test.projet ?? 'vide')}</span> · ${project ? escapeHtml(project.nom || '') : 'projet introuvable'} · actif : ${project ? String(project.actif !== false) : 'non'}<br>
+                Statut : <span class="mono">${escapeHtml(String(test.statut ?? 'vide'))}</span> · Progression : ${Number(test.progression)||0}%<br>
+                Chargée dans Tasks : <span class="ok">OUI</span> · retenue par filtre : <span class="${inFiltered?'ok':'bad'}">${inFiltered?'OUI':'NON'}</span> · présente dans une colonne : <span class="${inColumn?'ok':'bad'}">${inColumn?'OUI':'NON'}</span><br>
+                <strong>Diagnostic : ${escapeHtml(reason)}</strong>`;
+            document.body.appendChild(el);
+        }
+
         function render() {
             sortableInstances.forEach(s => s.destroy());
             sortableInstances = [];
@@ -1795,6 +1833,7 @@
             const container = document.getElementById('kanbanContainer');
             const ft = getFilteredTasks();
             const columns = buildColumns(ft);
+            renderV19Diagnostic(ft, columns);
             
             container.innerHTML = columns.map(col => `
                 <div class="kanban-column ${groupBy === 'projet' && col.key !== 'none' ? 'project-column' : ''}" data-key="${col.key}">
