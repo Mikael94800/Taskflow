@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <!-- Taskflow V24 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kanban - TaskFlow v15</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
@@ -701,11 +702,6 @@
 /* V10 — bouton principal de gestion des projets */
 .btn.project-manager-main{background:#f0982d!important;color:#fff!important;border:1px solid #f0982d!important;font-weight:700!important;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:145px;height:34px;padding:0 12px;}
 .btn.project-manager-main:hover{background:#d97f17!important;border-color:#d97f17!important;}
-
-/* V19 diagnostic visible */
-.tf-v19-diag { position: fixed; top: 72px; right: 18px; z-index: 99990; max-width: 520px; background: #fff; border: 2px solid #f59e0b; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 10px 12px; font: 12px/1.45 system-ui,sans-serif; color:#172033; }
-.tf-v19-diag strong { font-size:13px; } .tf-v19-diag .ok { color:#15803d; font-weight:700; } .tf-v19-diag .bad { color:#b91c1c; font-weight:700; } .tf-v19-diag .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.tf-v19-diag button { margin-left:8px; border:0; background:#172033; color:#fff; border-radius:6px; padding:3px 7px; cursor:pointer; }
 </style>
 
 <style id="taskflow-v9-project-manager">
@@ -891,7 +887,6 @@
             const DEFAULT_STATUSES = [
                 { value: 'todo',       label: 'À faire',  fillColor: '#94a3b8', textColor: '#ffffff' },
                 { value: 'inprogress', label: 'En cours', fillColor: '#f59e0b', textColor: '#ffffff' },
-                { value: 'review',     label: 'En revue', fillColor: '#3b82f6', textColor: '#ffffff' },
                 { value: 'done',       label: 'Terminé',  fillColor: '#10b981', textColor: '#ffffff' }
             ];
             // Repli libelle + couleur pour les CODES par defaut. Permet d'afficher un libelle
@@ -1344,70 +1339,39 @@
         const hasParentRef = (t) => !!refId(t?.parentTask);
         const getDependsOn = (t) => getRefListArray(t?.dependDe);
         const getTags = (t) => getChoiceListArray(t?.tags);
-        // V20 : normalisation robuste des valeurs Choice Grist.
-        // Certaines lignes historiques peuvent contenir par exemple "L,Moyenne",
-        // "Moyenne" ou une valeur tableau au lieu du code numerique attendu.
-        const scalarChoice = (v) => {
-            if (Array.isArray(v)) {
-                if (v[0] === 'L') return v.length > 1 ? v[1] : '';
-                return v.length ? v[0] : '';
-            }
-            return v == null ? '' : v;
-        };
-        const normalizeStatusValue = (v) => {
-            let x = String(scalarChoice(v) || '').trim();
-            if (x.startsWith('L,')) x = x.slice(2).trim();
-            const low = x.toLowerCase();
-            if (['todo','a faire','à faire','a_faire','afaire'].includes(low)) return 'todo';
-            if (['inprogress','in progress','en cours','encours'].includes(low)) return 'inprogress';
-            if (['review','en revue','enrevue'].includes(low)) return 'review';
-            if (['done','termine','terminé','completed','complete'].includes(low)) return 'done';
-            return x;
-        };
-        // V22 : l'interface Kanban utilise exclusivement 3 statuts français.
-        // Les valeurs internes Grist restent stables (todo / inprogress / done).
-        const KANBAN_STATUS_COLUMNS = [
-            { value: 'todo',       label: 'À faire',  fillColor: '#94a3b8', textColor: '#ffffff' },
-            { value: 'inprogress', label: 'En cours', fillColor: '#f59e0b', textColor: '#ffffff' },
-            { value: 'done',       label: 'Terminé',  fillColor: '#10b981', textColor: '#ffffff' }
-        ];
-        const KANBAN_STATUS_BY_VALUE = Object.fromEntries(KANBAN_STATUS_COLUMNS.map(s => [s.value, s]));
-        const getKanbanStatusLabel = (v) => KANBAN_STATUS_BY_VALUE[normalizeStatusValue(v)]?.label || 'À faire';
+        const getPriority = (t) => (t?.priorite >= 1 && t?.priorite <= 4) ? parseInt(t.priorite) : 3;
 
-        // V22 : le statut d'une sous-tâche est hérité de sa tâche principale.
-        // La priorité reste, elle, totalement indépendante.
-        function getEffectiveStatusValue(t) {
-            if (!t) return 'todo';
-            let cur = t;
-            let guard = 0;
-            while (cur && hasParentRef(cur) && guard++ < 64) {
-                const parentId = refId(cur.parentTask);
-                const parent = parentId ? tasks.find(x => Number(x.id) === parentId) : null;
-                if (!parent) break;
-                cur = parent;
-            }
-            return normalizeStatusValue(cur?.statut || t.statut || 'todo') || 'todo';
+        // V24 : une seule nomenclature de statut côté Kanban. Les anciennes valeurs
+        // anglaises restent acceptées dans Grist mais sont toujours traduites à l'écran.
+        function normalizeStatusValue(value) {
+            const v = String(value ?? '').trim().toLowerCase();
+            if (v === 'todo' || v === 'à faire' || v === 'a faire') return 'todo';
+            if (v === 'inprogress' || v === 'en cours' || v === 'review' || v === 'en revue') return 'inprogress';
+            if (v === 'done' || v === 'terminé' || v === 'termine') return 'done';
+            return 'todo';
         }
-
-        const getPriority = (t) => {
-            const raw = scalarChoice(t?.priorite);
-            const n = Number(raw);
-            if (Number.isFinite(n) && n >= 1 && n <= 4) return Math.round(n);
-            let x = String(raw || '').trim();
-            if (x.startsWith('L,')) x = x.slice(2).trim();
-            const low = x.toLowerCase();
-            if (low.includes('critique')) return 1;
-            if (low.includes('haute') || low.includes('high')) return 2;
-            if (low.includes('moyenne') || low.includes('medium')) return 3;
-            if (low.includes('basse') || low.includes('low')) return 4;
-            return 3;
-        };
+        function getEffectiveStatusValue(task) {
+            if (!task) return 'todo';
+            let cur = task;
+            const seen = new Set();
+            let guard = 0;
+            while (cur && hasParentRef(cur) && guard++ < 128) {
+                if (seen.has(Number(cur.id))) break;
+                seen.add(Number(cur.id));
+                const pid = refId(cur.parentTask);
+                cur = pid ? tasks.find(x => Number(x.id) === pid) : null;
+            }
+            return normalizeStatusValue(cur?.statut ?? task.statut);
+        }
+        function getStatusConfigEntry(task) {
+            return TF.getStatus(statusCfg, getEffectiveStatusValue(task));
+        }
         function getTaskColor(t) {
             if (t?.couleur && /^#[0-9a-f]{3,8}$/i.test(t.couleur)) return t.couleur;
             switch (colorMode) {
                 case 'project': return t?.projet ? getProjectColor(t.projet) : '#94a3b8';
                 case 'assignee': { const a = getAssignees(t); return a.length ? getTeamMemberColor(a[0]) : '#94a3b8'; }
-                case 'status': return TF.getStatus(statusCfg, t?.statut || statusCfg.firstValue).fillColor;
+                case 'status': return getStatusConfigEntry(t).fillColor;
                 case 'priority':
                 default: return PRIORITY_COLORS[getPriority(t)];
             }
@@ -1556,7 +1520,10 @@
             if (gristReady || !projects.length) { /* rien */ }
             gristReady = true;
             rebuildChildrenCache();
-            try { statusCfg = await TF.loadStatusConfig(grist, 'Tasks', 'statut', tasks.map(t => t && t.statut)); } catch (e) {}
+            // V24 : le Kanban utilise volontairement ses 3 statuts français.
+            // Les éventuelles anciennes valeurs (review, libellés anglais...) sont
+            // normalisées uniquement pour l'affichage et les sauvegardes.
+            statusCfg = TF.buildStatusConfig(TF.DEFAULT_STATUSES, 'v24-fr');
             updateFilterMenus(); render();
         }
 
@@ -1625,14 +1592,14 @@
             renderPanelTask(); render();
         }
         function toggleFilterMenu(type) { document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open')); document.getElementById(`filter${type.charAt(0).toUpperCase() + type.slice(1)}Menu`).classList.toggle('open'); }
-        function fStatusLabel(v){ return getKanbanStatusLabel(v); }
+        function fStatusLabel(v){ const sc = statusCfg.byValue[v]; return sc ? sc.label : v; }
         function updateFilterMenus() {
             const grp = (label, html, first) => '<div class="fm-group-label'+(first?' first':'')+'">'+label+'</div>'+html;
             const projHtml = projects.length ? projects.map(p => `<div class="filter-option" onclick="toggleFilterValue('project', ${p.id})"><input type="checkbox" ${filters.project.includes(p.id)?'checked':''}><span style="color:${p.couleur}">●</span> ${escapeHtml(p.nom)}</div>`).join('') : '<div class="filter-option muted">Aucun projet</div>';
             const prioHtml = [1,2,3,4].map(p => `<div class="filter-option" onclick="toggleFilterValue('priority', ${p})"><input type="checkbox" ${filters.priority.includes(p)?'checked':''}><span style="color:${PRIORITY_COLORS[p]}">●</span> ${PRIORITY_LABELS[p]}</div>`).join('');
             const team2 = team.filter(m => m.actif !== false);
             const assHtml = team2.length ? team2.map(m => `<div class="filter-option" onclick="toggleFilterValue('assignee', ${m.id})"><input type="checkbox" ${filters.assignee.includes(m.id)?'checked':''}>${escapeHtml(m.nom)}</div>`).join('') : '<div class="filter-option muted">Aucun membre</div>';
-            const statHtml = KANBAN_STATUS_COLUMNS.map(sc => `<div class="filter-option" data-status="${escapeHtml(sc.value)}" onclick="toggleFilterValue('status', this.dataset.status)"><input type="checkbox" ${filters.status.includes(sc.value)?'checked':''}><span style="color:${sc.fillColor}">●</span> ${escapeHtml(sc.label)}</div>`).join('');
+            const statHtml = statusCfg.list.map(sc => `<div class="filter-option" data-status="${escapeHtml(sc.value)}" onclick="toggleFilterValue('status', this.dataset.status)"><input type="checkbox" ${filters.status.includes(sc.value)?'checked':''}><span style="color:${sc.fillColor}">●</span> ${escapeHtml(sc.label)}</div>`).join('');
             const total = filters.project.length + filters.priority.length + filters.assignee.length + filters.status.length;
             const menu = document.getElementById('filterAllMenu');
             if (menu) menu.innerHTML = grp('Projets', projHtml, true) + grp('Priorités', prioHtml) + grp('Assignés', assHtml) + grp('Statuts', statHtml) + (total ? '<div class="fm-foot"><span class="fm-clear" onclick="clearAllFilters()">Tout effacer</span></div>' : '');
@@ -1665,30 +1632,18 @@
             const si = document.getElementById('searchInput'); if (si) si.value = '';
             updateFilterMenus(); broadcastFilters(); render();
         }
-        // V23 : hiérarchie stabilisée.
-        // En regroupement Statut/Projet, seules les tâches principales sont
-        // utilisées comme cartes Kanban ; leurs sous-tâches sont affichées
-        // à l'intérieur de la carte parent.
-        // En regroupement Priorité, toutes les tâches restent indépendantes
-        // afin qu'une sous-tâche puisse conserver sa propre priorité.
         function getFilteredTasks() {
             return tasks.filter(t => {
-                const title = String(t?.titre || '');
-                const isChild = hasParentRef(t);
-
-                // Le mode hiérarchique n'affiche jamais deux fois une sous-tâche
-                // en Statut ou Projet : elle est portée par sa tâche principale.
-                if ((groupBy === 'statut' || groupBy === 'projet') && isChild) return false;
-
-                // #9 filtre de niveau.
-                if (workLevel === 'actions' && hasChildren(t)) return false;
-                if (workLevel === 'parents' && !hasChildren(t)) return false;
-
+                // #9 filtre de niveau (orthogonal a la hierarchie) : Actions = feuilles, Syntheses = parents.
+                if (workLevel === 'actions') { if (hasChildren(t)) return false; }
+                else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
+                // V17: un Ref Grist vide peut être 0, null ou vide. Ne filtrer que les vraies références.
+                else if (!showSubtasks && hasParentRef(t)) return false;
                 if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) return false;
                 if (filters.priority.length && !filters.priority.includes(getPriority(t))) return false;
                 if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) return false;
                 if (filters.status.length && !filters.status.some(v => String(v) === String(getEffectiveStatusValue(t)))) return false;
-                if (searchQuery && !title.toLowerCase().includes(searchQuery)) return false;
+                if (searchQuery && !(t.titre||'').toLowerCase().includes(searchQuery)) return false;
                 return true;
             });
         }
@@ -1871,8 +1826,7 @@
                 </div>
             `).join('');
             
-            // V23 : pas de glisser-déposer des tâches.
-            // Les colonnes restent déplaçables uniquement pour réordonner les projets.
+            // V24 : pas de glisser-déposer des tâches. Le réordonnancement des projets reste actif.
 
             // V3 : en regroupement Projet, les colonnes/projets eux-mêmes sont déplaçables.
             if (groupBy === 'projet') {
@@ -1909,7 +1863,7 @@
             return `<div class="tf-empty">
                 <span class="tf-empty-glyph">${inbox}</span>
                 <div class="tf-empty-title">Rien dans « ${escapeHtml(col.label)} »</div>
-                <div class="tf-empty-sub">Aucune tâche dans cette colonne. Vous pouvez en créer une nouvelle.</div>
+                <div class="tf-empty-sub">Créez une nouvelle tâche dans cette colonne.</div>
                 <button class="tf-empty-btn" onclick="openCreatePanelForColumn('${col.key}')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nouvelle tâche</button>
             </div>`;
         }
@@ -1931,29 +1885,26 @@
 
         function buildColumns(ft) {
             if (groupBy === 'statut') {
-                // V21 : trois colonnes françaises fixes. Les anciennes variantes
-                // (todo, A faire, inprogress, En cours, done, Terminé...) sont
-                // normalisées vers les mêmes valeurs internes.
-                return KANBAN_STATUS_COLUMNS.map(s => ({
-                    key: s.value,
-                    label: s.label,
-                    icon: '',
-                    tasks: ft.filter(t => getEffectiveStatusValue(t) === s.value)
-                }));
+                // Une carte = une tâche principale. Les enfants restent dans la carte.
+                const roots = ft.filter(isRoot);
+                return statusCfg.list.map(s => ({ key: s.value, label: s.label, icon: '', tasks: roots.filter(t => getEffectiveStatusValue(t) === s.value) }));
             } else if (groupBy === 'priorite') {
+                // La priorité reste indépendante : une sous-tâche peut donc avoir sa propre colonne.
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
             } else if (groupBy === 'projet') {
-                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: ft.filter(t => refId(t.projet) === Number(p.id) || Number(t.projet) === Number(p.id)) }));
-                cols.push({ key: 'none', label: 'Sans projet', icon: '', tasks: ft.filter(t => !refId(t.projet) && !(Number(t.projet) > 0)) });
+                // Une carte = une tâche principale. Les enfants sont affichés dans la carte parent.
+                const roots = ft.filter(isRoot);
+                const cols = projects.filter(p => p.actif !== false).map(p => ({ key: String(p.id), label: p.nom, icon: `<span style="color:${p.couleur}">●</span>`, tasks: roots.filter(t => Number(t.projet) === Number(p.id)) }));
+                cols.push({ key: 'none', label: 'Sans projet', icon: '', tasks: roots.filter(t => !t.projet) });
                 return cols;
             }
             return [];
         }
 
         function renderSubtaskPreview(t, depth = 0) {
-            const inheritedStatus = getEffectiveStatusValue(t);
-            const done = TF.isTerminal(statusCfg, inheritedStatus) || Number(t.progression || 0) >= 100;
-            const stateClass = done ? 'done' : (inheritedStatus === 'inprogress' ? 'inprogress' : 'pending');
+            const effectiveStatus = getEffectiveStatusValue(t);
+            const done = TF.isTerminal(statusCfg, effectiveStatus) || Number(t.progression || 0) >= 100;
+            const stateClass = done ? 'done' : (effectiveStatus === 'inprogress' ? 'inprogress' : 'pending');
             const stateLabel = done ? '✓ Terminée' : (stateClass === 'inprogress' ? 'En cours' : 'À venir');
             const prog = Math.max(0, Math.min(100, Number(t.progression || 0)));
             const d0 = t.dateDebut ? gristToDate(t.dateDebut) : null;
@@ -2007,7 +1958,7 @@
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
-            const children = showSubtasks && !isChild && groupBy !== 'priorite' ? getChildren(t.id) : [];
+            const children = showSubtasks && !isChild ? getChildren(t.id) : [];
             return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
@@ -2027,9 +1978,6 @@
                 ${children.length ? `<div class="tf-hierarchy-children">${children.map(k => renderSubtaskPreview(k)).join('')}</div>` : ''}
             </div>`;
         }
-
-        // V23 : le glisser-déposer de tâches a été retiré pour stabiliser la hiérarchie.
-        // La transformation sous-tâche → tâche principale reste disponible depuis le panneau.
 
         // ═══════════════════════════════════════════════════════════════════════
         // PANEL
@@ -2123,7 +2071,7 @@
             const parent = parentId ? tasks.find(t => t.id === parentId) : null;
             panelState = {
                 open: true, isNew: true, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null,
-                editData: { titre: '', description: '', type: 'tache', priorite: '3', statut: 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: parent?.projet || (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: parentId || null, charges: [] }
+                editData: { titre: '', description: '', type: 'tache', priorite: '3', statut: parent ? getEffectiveStatusValue(parent) : 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: parent?.projet || (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: parentId || null, charges: [] }
             };
             renderPanelTask();
             openPanel();
@@ -2160,7 +2108,7 @@
 
             const previousParent = task.parentTask;
             const projectId = task.projet || panelState.editData?.projet || null;
-            const originalStatus = task.statut || 'todo';
+            const originalStatus = normalizeStatusValue(getEffectiveStatusValue(task));
             const btn = document.querySelector('.btn-transform-save');
             if (btn) { btn.disabled = true; btn.textContent = 'Enregistrement…'; }
 
@@ -2185,7 +2133,7 @@
                 const refreshed = tasks.find(t => t.id === taskId);
                 if (!refreshed) throw new Error('La tâche transformée n’a pas été retrouvée après sauvegarde.');
                 if (hasParentRef(refreshed)) throw new Error('La relation parentale n’a pas été supprimée.');
-                if (String(refreshed.statut || 'todo') !== String(originalStatus)) {
+                if (String(getEffectiveStatusValue(refreshed)) !== String(originalStatus)) {
                     throw new Error('Le statut de la tâche transformée n’a pas été conservé.');
                 }
 
@@ -2229,7 +2177,7 @@
             updateField('parentTask', newParentId);
         }
 
-        function cloneTaskData(task) { return { titre: task.titre || '', description: task.description || '', type: task.type || 'tache', priorite: String(task.priorite || '3'), statut: task.statut || 'todo', progression: task.progression || 0, dateDebut: task.dateDebut, dateEcheance: task.dateEcheance, projet: task.projet || null, assignees: getAssignees(task), dependDe: getDependsOn(task), tags: getTags(task), estimationH: task.estimationH || null, tempsPasse: task.tempsPasse || null, subtasks: getSubtasks(task), couleur: task.couleur || null, parentTask: task.parentTask || null, charges: TF.parseCharges(task.charges), dateCloture: task.dateCloture || null }; }
+        function cloneTaskData(task) { return { titre: task.titre || '', description: task.description || '', type: task.type || 'tache', priorite: String(task.priorite || '3'), statut: getEffectiveStatusValue(task), progression: task.progression || 0, dateDebut: task.dateDebut, dateEcheance: task.dateEcheance, projet: task.projet || null, assignees: getAssignees(task), dependDe: getDependsOn(task), tags: getTags(task), estimationH: task.estimationH || null, tempsPasse: task.tempsPasse || null, subtasks: getSubtasks(task), couleur: task.couleur || null, parentTask: task.parentTask || null, charges: TF.parseCharges(task.charges), dateCloture: task.dateCloture || null }; }
         
         // FIX: Synchroniser editData vers le task local dans tasks[]
         function syncLocalTask() {
@@ -2564,7 +2512,7 @@
             if(!title){ showToast('Le nom de la sous-tâche est obligatoire','error'); titleEl?.focus(); return; }
             if(sv && ev && ev<sv){ showToast('La date de fin doit être après la date de début','error'); return; }
             const parent=tasks.find(t=>t.id===panelState.taskId); if(!parent || !gristReady) return;
-            const record={titre:title,dateDebut:sv?dateToGrist(parseInputDate(sv)):null,dateEcheance:ev?dateToGrist(parseInputDate(ev)):null,parentTask:parent.id,type:'tache',progression:0,priorite:String(parent.priorite||'3'),statut:'todo',projet:parent.projet||null,assignees:[]};
+            const record={titre:title,dateDebut:sv?dateToGrist(parseInputDate(sv)):null,dateEcheance:ev?dateToGrist(parseInputDate(ev)):null,parentTask:parent.id,type:'tache',progression:0,priorite:String(parent.priorite||'3'),statut:getEffectiveStatusValue(parent),projet:parent.projet||null,assignees:[]};
             try{
                 await grist.docApi.applyUserActions([['AddRecord','Tasks',null,pruneTaskRecord(record)]]);
                 const raw=await grist.docApi.fetchTable('Tasks'); tasks=convertGristToRecords(raw); rebuildChildrenCache();
@@ -2577,8 +2525,20 @@
             if (!data) return;
             // BUG-01 FIX: Utiliser parseInputDate pour éviter problèmes de timezone
             if (field === 'dateDebut' || field === 'dateEcheance') value = value ? dateToGrist(parseInputDate(value)) : null;
-            // dateCloture auto : posee quand on passe au statut terminal, effacee si on rouvre
-            if (field === 'statut') { const _wasT = TF.isTerminal(statusCfg, data.statut), _nowT = TF.isTerminal(statusCfg, value); if (_nowT && !_wasT) data.dateCloture = Math.floor(Date.now() / 1000); else if (!_nowT && _wasT) data.dateCloture = null; }
+            // V24 : le statut d'une sous-tâche est imposé par sa tâche principale.
+            let propagateStatus = false;
+            if (field === 'statut') {
+                const currentTask = panelState.taskId ? tasks.find(t => Number(t.id) === Number(panelState.taskId)) : null;
+                if (currentTask && hasParentRef(currentTask)) {
+                    value = getEffectiveStatusValue(getParent(currentTask));
+                    showToast('Le statut suit celui de la tâche principale', 'info');
+                } else {
+                    value = normalizeStatusValue(value);
+                    propagateStatus = true;
+                }
+                const _wasT = TF.isTerminal(statusCfg, data.statut), _nowT = TF.isTerminal(statusCfg, value);
+                if (_nowT && !_wasT) data.dateCloture = Math.floor(Date.now() / 1000); else if (!_nowT && _wasT) data.dateCloture = null;
+            }
             data[field] = value;
             if (field === 'type' && value === 'jalon' && data.dateDebut) data.dateEcheance = data.dateDebut;
             
@@ -2588,7 +2548,7 @@
             const visualFields = ['type', 'priorite', 'statut', 'projet', 'progression', 'couleur', 'parentTask'];
             if (visualFields.includes(field)) { renderPanelTask(); if (!panelState.isNew) render(); }
             if (field === 'titre' && panelState.isNew) { const btn = document.querySelector('.panel-footer .panel-btn.success'); if (btn) btn.disabled = !value || !value.trim(); }
-            if (!panelState.isNew && !noSave && gristReady) saveTaskToGrist();
+            if (!panelState.isNew && !noSave && gristReady) saveTaskToGrist({ propagateStatus });
         }
 
         function setProgressPreset(value) {
@@ -2629,14 +2589,22 @@
             if (!task) return;
             
             task.progression = clampedPercent;
-            if (task.progression === 100 && !TF.isTerminal(statusCfg, task.statut)) task.statut = statusCfg.terminalValue;
-            
+            const effectiveStatus = getEffectiveStatusValue(task);
+            const nextOwnStatus = isRoot(task) && clampedPercent === 100 ? statusCfg.terminalValue : normalizeStatusValue(task.statut || 'todo');
+            if (isRoot(task) && clampedPercent === 100) task.statut = nextOwnStatus;
+            else if (hasParentRef(task)) task.statut = effectiveStatus;
+
             if (gristReady) {
                 try {
-                    await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, { progression: clampedPercent, statut: task.statut }]]);
+                    const actions = [['UpdateRecord', 'Tasks', taskId, { progression: clampedPercent, statut: task.statut }]];
+                    if (isRoot(task) && clampedPercent === 100) {
+                        for (const child of getAllDescendants(taskId)) actions.push(['UpdateRecord', 'Tasks', child.id, { statut: nextOwnStatus }]);
+                    }
+                    await grist.docApi.applyUserActions(actions);
                     showToast(`${clampedPercent}%`, 'success');
                 } catch (err) {
                     showToast('Erreur', 'error');
+                    await loadAllData();
                 }
             }
             render();
@@ -2744,20 +2712,33 @@
         // ═══════════════════════════════════════════════════════════════════════
         // CRUD
         // ═══════════════════════════════════════════════════════════════════════
-        async function saveTaskToGrist() {
+        async function saveTaskToGrist(options = {}) {
             const data = panelState.editData;
             if (!data || panelState.isNew || !gristReady) return;
             if (data.dateDebut && data.dateEcheance && data.dateDebut > data.dateEcheance) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
-            syncLocalTask();  // FIX: Synchroniser localement avant envoi API
+            const currentTask = tasks.find(t => Number(t.id) === Number(panelState.taskId));
+            if (currentTask && hasParentRef(currentTask)) data.statut = getEffectiveStatusValue(currentTask);
+            else data.statut = normalizeStatusValue(data.statut);
+            syncLocalTask();
             const record = { titre: data.titre, description: data.description, type: data.type, priorite: data.priorite, statut: data.statut, progression: data.progression, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null };
-            try { await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', panelState.taskId, pruneTaskRecord(record)]]); showSaveIndicator(); } catch (e) { showToast('Erreur sauvegarde', 'error'); }
+            try {
+                const actions = [['UpdateRecord', 'Tasks', panelState.taskId, pruneTaskRecord(record)]];
+                if (options.propagateStatus && currentTask && isRoot(currentTask)) {
+                    const nextStatus = data.statut;
+                    for (const child of getAllDescendants(currentTask.id)) actions.push(['UpdateRecord', 'Tasks', child.id, { statut: nextStatus }]);
+                }
+                await grist.docApi.applyUserActions(actions);
+                showSaveIndicator();
+                // Garder le cache cohérent immédiatement, sans attendre l'événement Grist.
+                if (currentTask) { currentTask.statut = data.statut; for (const child of getAllDescendants(currentTask.id)) child.statut = data.statut; }
+            } catch (e) { showToast('Erreur sauvegarde', 'error'); }
         }
 
         async function createTask() {
             const data = panelState.editData;
             if (!data || !data.titre?.trim()) { showToast('Titre requis', 'error'); return; }
             if (data.dateDebut && data.dateEcheance && data.dateDebut > data.dateEcheance) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
-            const record = { titre: data.titre, description: data.description || '', type: data.type || 'tache', priorite: data.priorite || '3', statut: data.statut || 'todo', progression: data.progression || 0, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null };
+            const record = { titre: data.titre, description: data.description || '', type: data.type || 'tache', priorite: data.priorite || '3', statut: normalizeStatusValue(data.statut || 'todo'), progression: data.progression || 0, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null };
             if (gristReady) {
                 try { await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, pruneTaskRecord(record)]]); showToast('Créée', 'success'); await loadAllData(); closePanel(); } catch (e) { showToast('Erreur création', 'error'); }
             } else { record.id = Date.now(); tasks.push(record); showToast('Créée', 'success'); render(); closePanel(); }
