@@ -1366,7 +1366,7 @@
             if (['done','termine','terminé','completed','complete'].includes(low)) return 'done';
             return x;
         };
-        // V21 : l'interface Kanban utilise exclusivement 3 statuts français.
+        // V22 : l'interface Kanban utilise exclusivement 3 statuts français.
         // Les valeurs internes Grist restent stables (todo / inprogress / done).
         const KANBAN_STATUS_COLUMNS = [
             { value: 'todo',       label: 'À faire',  fillColor: '#94a3b8', textColor: '#ffffff' },
@@ -1375,6 +1375,21 @@
         ];
         const KANBAN_STATUS_BY_VALUE = Object.fromEntries(KANBAN_STATUS_COLUMNS.map(s => [s.value, s]));
         const getKanbanStatusLabel = (v) => KANBAN_STATUS_BY_VALUE[normalizeStatusValue(v)]?.label || 'À faire';
+
+        // V22 : le statut d'une sous-tâche est hérité de sa tâche principale.
+        // La priorité reste, elle, totalement indépendante.
+        function getEffectiveStatusValue(t) {
+            if (!t) return 'todo';
+            let cur = t;
+            let guard = 0;
+            while (cur && hasParentRef(cur) && guard++ < 64) {
+                const parentId = refId(cur.parentTask);
+                const parent = parentId ? tasks.find(x => Number(x.id) === parentId) : null;
+                if (!parent) break;
+                cur = parent;
+            }
+            return normalizeStatusValue(cur?.statut || t.statut || 'todo') || 'todo';
+        }
 
         const getPriority = (t) => {
             const raw = scalarChoice(t?.priorite);
@@ -1976,7 +1991,7 @@
                     key: s.value,
                     label: s.label,
                     icon: '',
-                    tasks: ft.filter(t => normalizeStatusValue(t.statut) === s.value)
+                    tasks: ft.filter(t => getEffectiveStatusValue(t) === s.value)
                 }));
             } else if (groupBy === 'priorite') {
                 return [1,2,3,4].map(p => ({ key: String(p), label: PRIORITY_LABELS[p], icon: '', tasks: ft.filter(t => getPriority(t) === p) }));
@@ -1989,8 +2004,9 @@
         }
 
         function renderSubtaskPreview(t, depth = 0) {
-            const done = TF.isTerminal(statusCfg, normalizeStatusValue(t.statut)) || Number(t.progression || 0) >= 100;
-            const stateClass = done ? 'done' : (normalizeStatusValue(t.statut) === 'inprogress' ? 'inprogress' : 'pending');
+            const inheritedStatus = getEffectiveStatusValue(t);
+            const done = TF.isTerminal(statusCfg, inheritedStatus) || Number(t.progression || 0) >= 100;
+            const stateClass = done ? 'done' : (inheritedStatus === 'inprogress' ? 'inprogress' : 'pending');
             const stateLabel = done ? '✓ Terminée' : (stateClass === 'inprogress' ? 'En cours' : 'À venir');
             const prog = Math.max(0, Math.min(100, Number(t.progression || 0)));
             const d0 = t.dateDebut ? gristToDate(t.dateDebut) : null;
@@ -2038,14 +2054,14 @@
                     const _t0 = new Date(); _t0.setHours(0,0,0,0);
                     const _d = new Date(_e); _d.setHours(0,0,0,0);
                     const _days = Math.round((_d - _t0) / 86400000);
-                    const _done = TF.isTerminal(statusCfg, t.statut);
+                    const _done = TF.isTerminal(statusCfg, getEffectiveStatusValue(t));
                     const _st = _done ? '' : _days < 0 ? 'over' : _days <= 2 ? 'soon' : '';
                     const _MO = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
             const children = showSubtasks && !isChild ? getChildren(t.id) : [];
-            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, t.statut) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" draggable="true" title="Glisser cette tâche sur une autre pour en faire une sous-tâche" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
+            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" draggable="true" title="Glisser cette tâche sur une autre pour en faire une sous-tâche" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
@@ -2112,13 +2128,18 @@
             }
 
             try {
+                const inheritedStatus = getEffectiveStatusValue(target);
                 if (gristReady) {
                     await grist.docApi.applyUserActions([
-                        ['UpdateRecord', 'Tasks', Number(task.id), { parentTask: Number(target.id) }]
+                        ['UpdateRecord', 'Tasks', Number(task.id), {
+                            parentTask: Number(target.id),
+                            statut: inheritedStatus
+                        }]
                     ]);
                     await loadAllData();
                 } else {
                     task.parentTask = Number(target.id);
+                    task.statut = inheritedStatus;
                 }
                 showSaveIndicator();
                 showToast(`« ${task.titre || 'La tâche'} » est maintenant une sous-tâche de « ${target.titre || 'la tâche'} »`, 'success');
@@ -2146,7 +2167,7 @@
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
 
-            // V21 : si le geste termine sur une carte, on propose de créer
+            // V22 : si le geste termine sur une carte, on propose de créer
             // une relation parentTask au lieu de modifier statut/priorité/projet.
             const targetId = getTaskDropTarget(evt);
             if (targetId && targetId !== taskId) {
@@ -2160,14 +2181,37 @@
             if (colKey === null) return;
 
             let updates = {};
-            if (groupBy === 'statut') { updates.statut = colKey; const _wasT = TF.isTerminal(statusCfg, task.statut), _nowT = TF.isTerminal(statusCfg, colKey); if (_nowT) { updates.progression = 100; if (!_wasT) updates.dateCloture = Math.floor(Date.now() / 1000); } else if (_wasT) updates.dateCloture = null; }
+            let relatedStatusUpdates = [];
+            if (groupBy === 'statut') {
+                // V22 : une sous-tâche ne possède plus de statut indépendant.
+                // Elle hérite toujours de celui de sa tâche principale.
+                if (hasParentRef(task)) {
+                    showToast('Le statut d’une sous-tâche est celui de sa tâche principale.', 'info');
+                    await loadAllData();
+                    render();
+                    return;
+                }
+                updates.statut = normalizeStatusValue(colKey) || 'todo';
+                const descendants = getAllDescendants(taskId);
+                relatedStatusUpdates = descendants.map(child => ['UpdateRecord', 'Tasks', Number(child.id), { statut: updates.statut }]);
+                const _wasT = TF.isTerminal(statusCfg, task.statut), _nowT = TF.isTerminal(statusCfg, updates.statut);
+                if (_nowT) { updates.progression = 100; if (!_wasT) updates.dateCloture = Math.floor(Date.now() / 1000); }
+                else if (_wasT) updates.dateCloture = null;
+            }
             else if (groupBy === 'priorite') updates.priorite = parseInt(colKey, 10);
             else if (groupBy === 'projet') updates.projet = colKey === 'none' ? null : parseInt(colKey, 10);
             
             Object.assign(task, updates);
+            if (groupBy === 'statut') {
+                for (const child of getAllDescendants(taskId)) child.statut = updates.statut;
+            }
             
             if (gristReady) {
-                try { await grist.docApi.applyUserActions([['UpdateRecord', 'Tasks', taskId, pruneTaskRecord(updates)]]); showSaveIndicator(); }
+                try {
+                    const actions = [['UpdateRecord', 'Tasks', taskId, pruneTaskRecord(updates)], ...relatedStatusUpdates];
+                    await grist.docApi.applyUserActions(actions);
+                    showSaveIndicator();
+                }
                 catch (e) { showToast('Erreur déplacement', 'error'); await loadAllData(); }
             }
             render();  // garde les états vides cohérents après un déplacement
