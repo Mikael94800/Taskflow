@@ -553,8 +553,8 @@
         .tf-hierarchy-children::before { content:''; position:absolute; left:3px; top:0; bottom:8px; width:1px; background:var(--border-dark); }
         .tf-subtask-preview { position:relative; margin:6px 0 0; padding:8px 9px 8px 13px; border:1px solid var(--border); border-radius:8px; background:var(--bg); cursor:pointer; min-height:54px; }
         .tf-subtask-preview::before { content:''; position:absolute; left:-10px; top:15px; width:10px; height:1px; background:var(--border-dark); }
-        .tf-subtask-preview.pending { border-left:4px solid var(--info); }
-        .tf-subtask-preview.done { border-left:4px solid var(--success); background:#f7faf9; opacity:.72; }
+        .tf-subtask-preview.pending { border-left:4px solid var(--tf-subtask-band, var(--info)); }
+        .tf-subtask-preview.done { border-left:4px solid var(--tf-subtask-band, var(--success)); background:#f7faf9; opacity:.72; }
         .tf-subtask-preview:hover { border-color:var(--primary); background:var(--card-bg); opacity:1; }
         .tf-subtask-head { display:flex; align-items:flex-start; gap:7px; min-width:0; padding-right:25px; position:relative; }
         .tf-subtask-check { width:16px; height:16px; border-radius:50%; border:1px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex:0 0 16px; font-size:10px; color:transparent; background:var(--card-bg); }
@@ -1254,7 +1254,10 @@
         let CRA_ACTIVE = false; // si la Feuille de temps (TimeEntries) est active, tempsPasse devient un rollup CRA -> saisie manuelle figee (anti-doublon)
         let statusCfg = TF.buildStatusConfig(TF.DEFAULT_STATUSES, 'default'); // #1 : statuts dynamiques, alimente par TF.loadStatusConfig en mode Grist
         let groupBy = 'statut', searchQuery = '', selectedTaskId = null;
-        let colorMode = localStorage.getItem('taskflow_kanban_colormode') || 'priority';
+        // V25 : les bandes de couleur du Kanban suivent par défaut le projet.
+        // Les anciennes préférences locales (priorité/statut/assigné) ne doivent
+        // plus imposer une couleur bleue aux nouvelles tâches.
+        let colorMode = 'project';
         let showSubtasks = localStorage.getItem('taskflow_kanban_showsubs') === '1';  // WBS-03: afficher enfants
         // #9 niveau de travail (par widget, opt-in, defaut 'all') : 'actions' = feuilles, 'parents' = noeuds de synthese.
         let workLevel = 'all';
@@ -1341,7 +1344,7 @@
         const getTags = (t) => getChoiceListArray(t?.tags);
         const getPriority = (t) => (t?.priorite >= 1 && t?.priorite <= 4) ? parseInt(t.priorite) : 3;
 
-        // V24 : une seule nomenclature de statut côté Kanban. Les anciennes valeurs
+        // V24/V25 : une seule nomenclature de statut côté Kanban. Les anciennes valeurs
         // anglaises restent acceptées dans Grist mais sont toujours traduites à l'écran.
         function normalizeStatusValue(value) {
             const v = String(value ?? '').trim().toLowerCase();
@@ -1366,15 +1369,24 @@
         function getStatusConfigEntry(task) {
             return TF.getStatus(statusCfg, getEffectiveStatusValue(task));
         }
-        function getTaskColor(t) {
-            if (t?.couleur && /^#[0-9a-f]{3,8}$/i.test(t.couleur)) return t.couleur;
-            switch (colorMode) {
-                case 'project': return t?.projet ? getProjectColor(t.projet) : '#94a3b8';
-                case 'assignee': { const a = getAssignees(t); return a.length ? getTeamMemberColor(a[0]) : '#94a3b8'; }
-                case 'status': return getStatusConfigEntry(t).fillColor;
-                case 'priority':
-                default: return PRIORITY_COLORS[getPriority(t)];
+        // V25 : la bande de couleur représente la couleur du projet.
+        // Une sous-tâche hérite de la couleur de sa tâche principale, ce qui
+        // évite les sous-tâches bleues par défaut dans un projet orange/vert/etc.
+        function getTaskColor(t, seen = new Set()) {
+            if (!t) return '#94a3b8';
+            const id = Number(t.id);
+            if (Number.isFinite(id)) {
+                if (seen.has(id)) return '#94a3b8';
+                seen.add(id);
             }
+
+            if (hasParentRef(t)) {
+                const parent = tasks.find(x => Number(x.id) === refId(t.parentTask));
+                if (parent) return getTaskColor(parent, seen);
+            }
+
+            if (t.projet) return getProjectColor(t.projet);
+            return '#94a3b8';
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1915,7 +1927,8 @@
             const who = aa.length ? getInitials(getTeamMemberName(aa[0])) : '';
             const whoTitle = aa.length ? aa.map(id => getTeamMemberName(id)).filter(Boolean).join(', ') : '';
             const children = showSubtasks && depth < 2 ? getChildren(t.id) : [];
-            return `<div class="tf-subtask-preview ${stateClass}" data-id="${t.id}" onclick="event.stopPropagation();handleTaskCardClick(event, ${t.id})" title="Ouvrir la sous-tâche">
+            const bandColor = getTaskColor(t);
+            return `<div class="tf-subtask-preview ${stateClass}" data-id="${t.id}" style="--tf-subtask-band:${bandColor}" onclick="event.stopPropagation();handleTaskCardClick(event, ${t.id})" title="Ouvrir la sous-tâche">
                 <div class="tf-subtask-head">
                     <span class="tf-subtask-check">✓</span>
                     <span class="tf-subtask-title">↳ ${escapeHtml(t.titre || 'Sans titre')}</span>
