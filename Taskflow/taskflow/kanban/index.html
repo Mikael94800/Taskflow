@@ -175,8 +175,6 @@
         .task-card.p3 { border-left-color: var(--info); }
         .task-card.p4 { border-left-color: var(--text-muted); }
         .task-card.done { opacity: 0.6; }
-        .task-card.drag-over-parent { outline: 2px dashed #3e5de7; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(62,93,231,.10); }
-        .task-card.dragging-to-parent { opacity: .55; }
         .task-card.sortable-ghost { opacity: 0.4; }
         .task-card.sortable-chosen { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
         .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
@@ -1667,29 +1665,32 @@
             const si = document.getElementById('searchInput'); if (si) si.value = '';
             updateFilterMenus(); broadcastFilters(); render();
         }
-        // V19 DIAGNOSTIC : le problème n'est plus l'enregistrement dans Tasks.
-        // On trace précisément pourquoi une tâche racine pourrait être exclue du Kanban.
+        // V23 : hiérarchie stabilisée.
+        // En regroupement Statut/Projet, seules les tâches principales sont
+        // utilisées comme cartes Kanban ; leurs sous-tâches sont affichées
+        // à l'intérieur de la carte parent.
+        // En regroupement Priorité, toutes les tâches restent indépendantes
+        // afin qu'une sous-tâche puisse conserver sa propre priorité.
         function getFilteredTasks() {
-            const debug = [];
-            const result = tasks.filter(t => {
+            return tasks.filter(t => {
                 const title = String(t?.titre || '');
-                const isDebugTask = /^test$/i.test(title.trim());
-                const root = !hasParentRef(t);
-                let reason = '';
-                // #9 filtre de niveau (orthogonal à la hiérarchie).
-                if (workLevel === 'actions' && hasChildren(t)) reason = 'workLevel=actions + possède des enfants';
-                else if (workLevel === 'parents' && !hasChildren(t)) reason = 'workLevel=parents + aucun enfant';
-                else if (!showSubtasks && hasParentRef(t)) reason = 'parentTask encore présent';
-                else if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) reason = 'filtre projet';
-                else if (filters.priority.length && !filters.priority.includes(getPriority(t))) reason = 'filtre priorité';
-                else if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) reason = 'filtre personne';
-                else if (filters.status.length && !filters.status.some(v => String(v) === String(normalizeStatusValue(t.statut) || 'todo'))) reason = 'filtre statut';
-                else if (searchQuery && !title.toLowerCase().includes(searchQuery)) reason = 'recherche';
-                if (isDebugTask) debug.push({ id:t.id, titre:title, parentTask:t.parentTask, hasParent:hasParentRef(t), projet:t.projet, statut:t.statut, hasChildren:hasChildren(t), workLevel, showSubtasks, filters:JSON.parse(JSON.stringify(filters)), searchQuery, retenue:!reason, raison:reason });
-                return !reason;
+                const isChild = hasParentRef(t);
+
+                // Le mode hiérarchique n'affiche jamais deux fois une sous-tâche
+                // en Statut ou Projet : elle est portée par sa tâche principale.
+                if ((groupBy === 'statut' || groupBy === 'projet') && isChild) return false;
+
+                // #9 filtre de niveau.
+                if (workLevel === 'actions' && hasChildren(t)) return false;
+                if (workLevel === 'parents' && !hasChildren(t)) return false;
+
+                if (filters.project.length && !filters.project.some(v => Number(v) === Number(t.projet))) return false;
+                if (filters.priority.length && !filters.priority.includes(getPriority(t))) return false;
+                if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.some(v => Number(v) === Number(a)))) return false;
+                if (filters.status.length && !filters.status.some(v => String(v) === String(getEffectiveStatusValue(t)))) return false;
+                if (searchQuery && !title.toLowerCase().includes(searchQuery)) return false;
+                return true;
             });
-            if (debug.length) console.warn('[Taskflow V19] Diagnostic tâche TEST:', debug);
-            return result;
         }
         // #9 : change le niveau de travail affiche (persistance locale par widget, comme colorMode).
         function changeWorkLevel(v) {
@@ -1852,39 +1853,6 @@
             }
         }
 
-        function renderV19Diagnostic(ft, columns) {
-            const old = document.getElementById('tfV19Diag');
-            if (old) old.remove();
-            const test = tasks.find(t => String(t?.titre || '').trim().toLowerCase() === 'test');
-            if (!test) return;
-            const pid = refId(test.projet) || Number(test.projet) || null;
-            const project = pid ? projects.find(p => Number(p.id) === Number(pid)) : null;
-            const inFiltered = !!(ft || []).some(t => Number(t.id) === Number(test.id));
-            const inColumn = !!(columns || []).some(c => (c.tasks || []).some(t => Number(t.id) === Number(test.id)));
-            let reason = 'Aucune exclusion détectée';
-            if (!inFiltered) {
-                if (workLevel === 'actions' && hasChildren(test)) reason = 'Niveau = actions : TEST possède des enfants';
-                else if (workLevel === 'parents' && !hasChildren(test)) reason = 'Niveau = parents : TEST n’a aucun enfant';
-                else if (!showSubtasks && hasParentRef(test)) reason = 'parentTask encore présent';
-                else if (filters.project.length && !filters.project.some(v => Number(v) === Number(test.projet))) reason = 'filtre projet';
-                else if (filters.priority.length && !filters.priority.includes(getPriority(test))) reason = 'filtre priorité';
-                else if (filters.assignee.length && !getAssignees(test).some(a => filters.assignee.some(v => Number(v) === Number(a)))) reason = 'filtre personne';
-                else if (filters.status.length && !filters.status.some(v => String(v) === String(test.statut || 'todo'))) reason = 'filtre statut';
-                else if (searchQuery && !String(test.titre || '').toLowerCase().includes(searchQuery)) reason = 'recherche';
-                else reason = 'exclue par une logique non identifiée';
-            } else if (!inColumn) {
-                reason = project && project.actif !== false ? 'TEST est filtrée mais n’entre dans aucune colonne' : 'Le projet de TEST est absent ou inactif dans Projects';
-            }
-            const el=document.createElement('div'); el.id='tfV19Diag'; el.className='tf-v19-diag';
-            el.innerHTML = `<strong>Diagnostic V19 — TEST</strong><button onclick="this.parentElement.remove()">×</button><br>
-                ID : <span class="mono">${test.id}</span> · parentTask : <span class="mono">${String(test.parentTask ?? 'vide')}</span><br>
-                Projet : <span class="mono">${String(test.projet ?? 'vide')}</span> · ${project ? escapeHtml(project.nom || '') : 'projet introuvable'} · actif : ${project ? String(project.actif !== false) : 'non'}<br>
-                Statut : <span class="mono">${escapeHtml(String(test.statut ?? 'vide'))}</span> → normalisé : <span class="mono">${escapeHtml(String(normalizeStatusValue(test.statut) || 'vide'))}</span> · Progression : ${Number(test.progression)||0}%<br>
-                Chargée dans Tasks : <span class="ok">OUI</span> · retenue par filtre : <span class="${inFiltered?'ok':'bad'}">${inFiltered?'OUI':'NON'}</span> · présente dans une colonne : <span class="${inColumn?'ok':'bad'}">${inColumn?'OUI':'NON'}</span><br>
-                <strong>Diagnostic : ${escapeHtml(reason)}</strong>`;
-            document.body.appendChild(el);
-        }
-
         function render() {
             sortableInstances.forEach(s => s.destroy());
             sortableInstances = [];
@@ -1892,7 +1860,6 @@
             const container = document.getElementById('kanbanContainer');
             const ft = getFilteredTasks();
             const columns = buildColumns(ft);
-            renderV19Diagnostic(ft, columns);
             
             container.innerHTML = columns.map(col => `
                 <div class="kanban-column ${groupBy === 'projet' && col.key !== 'none' ? 'project-column' : ''}" data-key="${col.key}">
@@ -1904,28 +1871,8 @@
                 </div>
             `).join('');
             
-            // Sortable des tâches
-            columns.forEach(col => {
-                const el = document.getElementById(`col-${col.key}`);
-                if (el) {
-                    sortableInstances.push(new Sortable(el, {
-                        group: 'tasks', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
-                        onMove: (evt) => {
-                            document.querySelectorAll('.task-card.drag-over-parent').forEach(x => x.classList.remove('drag-over-parent'));
-                            const target = evt.related && evt.related.closest ? evt.related.closest('.task-card') : null;
-                            const draggedId = Number(evt.dragged?.dataset?.id);
-                            if (target && draggedId && Number(target.dataset.id) !== draggedId && !isDescendantTask(Number(target.dataset.id), draggedId)) {
-                                target.classList.add('drag-over-parent');
-                            }
-                            return true;
-                        },
-                        onEnd: (evt) => {
-                            document.querySelectorAll('.task-card.drag-over-parent').forEach(x => x.classList.remove('drag-over-parent'));
-                            handleDrop(evt);
-                        }
-                    }));
-                }
-            });
+            // V23 : pas de glisser-déposer des tâches.
+            // Les colonnes restent déplaçables uniquement pour réordonner les projets.
 
             // V3 : en regroupement Projet, les colonnes/projets eux-mêmes sont déplaçables.
             if (groupBy === 'projet') {
@@ -1962,7 +1909,7 @@
             return `<div class="tf-empty">
                 <span class="tf-empty-glyph">${inbox}</span>
                 <div class="tf-empty-title">Rien dans « ${escapeHtml(col.label)} »</div>
-                <div class="tf-empty-sub">Glissez une tâche ici ou créez-en une nouvelle.</div>
+                <div class="tf-empty-sub">Aucune tâche dans cette colonne. Vous pouvez en créer une nouvelle.</div>
                 <button class="tf-empty-btn" onclick="openCreatePanelForColumn('${col.key}')"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nouvelle tâche</button>
             </div>`;
         }
@@ -2060,8 +2007,8 @@
                     dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
                 }
             }
-            const children = showSubtasks && !isChild ? getChildren(t.id) : [];
-            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" draggable="true" title="Glisser cette tâche sur une autre pour en faire une sous-tâche" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
+            const children = showSubtasks && !isChild && groupBy !== 'priorite' ? getChildren(t.id) : [];
+            return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
@@ -2081,141 +2028,8 @@
             </div>`;
         }
 
-        function getTaskDropTarget(evt) {
-            const oe = evt && evt.originalEvent;
-            const target = oe && oe.target && oe.target.closest ? oe.target.closest('.task-card') : null;
-            if (!target) return null;
-            const id = Number(target.dataset.id);
-            return Number.isFinite(id) && id > 0 ? id : null;
-        }
-
-        function isDescendantTask(candidateId, ancestorId) {
-            let cur = tasks.find(t => Number(t.id) === Number(candidateId));
-            let guard = 0;
-            while (cur && hasParentRef(cur) && guard++ < 64) {
-                const pid = refId(cur.parentTask);
-                if (pid === Number(ancestorId)) return true;
-                cur = tasks.find(t => Number(t.id) === pid);
-            }
-            return false;
-        }
-
-        async function handleTaskDropOnTask(taskId, targetId) {
-            const task = tasks.find(t => Number(t.id) === Number(taskId));
-            const target = tasks.find(t => Number(t.id) === Number(targetId));
-            if (!task || !target || Number(task.id) === Number(target.id)) return false;
-
-            if (isDescendantTask(Number(target.id), Number(task.id))) {
-                showToast('Impossible : cette tâche est déjà dans la hiérarchie de la tâche déplacée.', 'error');
-                render();
-                return true;
-            }
-
-            const currentParent = refId(task.parentTask);
-            if (currentParent === Number(target.id)) {
-                showToast('Cette tâche est déjà une sous-tâche de cette tâche.', 'info');
-                render();
-                return true;
-            }
-
-            const ok = window.confirm(
-                `Transformer « ${task.titre || 'Sans titre'} » en sous-tâche de « ${target.titre || 'Sans titre'} » ?\n\n` +
-                `La tâche existante sera conservée avec son statut, sa progression, ses dates, son projet et ses personnes assignées.`
-            );
-            if (!ok) {
-                render();
-                return true;
-            }
-
-            try {
-                const inheritedStatus = getEffectiveStatusValue(target);
-                if (gristReady) {
-                    await grist.docApi.applyUserActions([
-                        ['UpdateRecord', 'Tasks', Number(task.id), {
-                            parentTask: Number(target.id),
-                            statut: inheritedStatus
-                        }]
-                    ]);
-                    await loadAllData();
-                } else {
-                    task.parentTask = Number(target.id);
-                    task.statut = inheritedStatus;
-                }
-                showSaveIndicator();
-                showToast(`« ${task.titre || 'La tâche'} » est maintenant une sous-tâche de « ${target.titre || 'la tâche'} »`, 'success');
-            } catch (e) {
-                console.error('Transformation tâche → sous-tâche:', e);
-                showToast('Impossible de créer la sous-tâche', 'error');
-                await loadAllData();
-            }
-            render();
-            return true;
-        }
-
-        function markParentDropTarget(evt) {
-            const target = getTaskDropTarget(evt);
-            document.querySelectorAll('.task-card.drag-over-parent').forEach(el => el.classList.remove('drag-over-parent'));
-            if (!target) return;
-            const id = Number(evt.item?.dataset?.id);
-            if (!id || id === target || isDescendantTask(target, id)) return;
-            const el = document.querySelector(`.task-card[data-id="${target}"]`);
-            if (el) el.classList.add('drag-over-parent');
-        }
-
-        async function handleDrop(evt) {
-            const taskId = parseInt(evt.item.dataset.id);
-            const task = tasks.find(t => t.id === taskId);
-            if (!task) return;
-
-            // V22 : si le geste termine sur une carte, on propose de créer
-            // une relation parentTask au lieu de modifier statut/priorité/projet.
-            const targetId = getTaskDropTarget(evt);
-            if (targetId && targetId !== taskId) {
-                await handleTaskDropOnTask(taskId, targetId);
-                return;
-            }
-
-            // Lire la colonne de destination depuis evt.to (le conteneur d'arrivée).
-            // Utiliser col.key capturée en closure donnerait la source, pas la destination.
-            const colKey = (evt.to && evt.to.id) ? evt.to.id.replace(/^col-/, '') : null;
-            if (colKey === null) return;
-
-            let updates = {};
-            let relatedStatusUpdates = [];
-            if (groupBy === 'statut') {
-                // V22 : une sous-tâche ne possède plus de statut indépendant.
-                // Elle hérite toujours de celui de sa tâche principale.
-                if (hasParentRef(task)) {
-                    showToast('Le statut d’une sous-tâche est celui de sa tâche principale.', 'info');
-                    await loadAllData();
-                    render();
-                    return;
-                }
-                updates.statut = normalizeStatusValue(colKey) || 'todo';
-                const descendants = getAllDescendants(taskId);
-                relatedStatusUpdates = descendants.map(child => ['UpdateRecord', 'Tasks', Number(child.id), { statut: updates.statut }]);
-                const _wasT = TF.isTerminal(statusCfg, task.statut), _nowT = TF.isTerminal(statusCfg, updates.statut);
-                if (_nowT) { updates.progression = 100; if (!_wasT) updates.dateCloture = Math.floor(Date.now() / 1000); }
-                else if (_wasT) updates.dateCloture = null;
-            }
-            else if (groupBy === 'priorite') updates.priorite = parseInt(colKey, 10);
-            else if (groupBy === 'projet') updates.projet = colKey === 'none' ? null : parseInt(colKey, 10);
-            
-            Object.assign(task, updates);
-            if (groupBy === 'statut') {
-                for (const child of getAllDescendants(taskId)) child.statut = updates.statut;
-            }
-            
-            if (gristReady) {
-                try {
-                    const actions = [['UpdateRecord', 'Tasks', taskId, pruneTaskRecord(updates)], ...relatedStatusUpdates];
-                    await grist.docApi.applyUserActions(actions);
-                    showSaveIndicator();
-                }
-                catch (e) { showToast('Erreur déplacement', 'error'); await loadAllData(); }
-            }
-            render();  // garde les états vides cohérents après un déplacement
-        }
+        // V23 : le glisser-déposer de tâches a été retiré pour stabiliser la hiérarchie.
+        // La transformation sous-tâche → tâche principale reste disponible depuis le panneau.
 
         // ═══════════════════════════════════════════════════════════════════════
         // PANEL
