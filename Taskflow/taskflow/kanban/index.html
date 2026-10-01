@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <!-- Taskflow V24 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban - TaskFlow V26</title>
+    <title>Kanban - TaskFlow V27</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -546,6 +546,34 @@
         .tf-user-badge.error .tf-user-dot { background:#ef4444; }
         .tf-user-badge .tf-user-service { font-weight:500; color:var(--text-muted); }
         @media(max-width:1100px){ .tf-user-badge { max-width:210px; } }
+
+        /* V27 — alertes personnelles : visuelles uniquement, sans nouvelle table */
+        .tf-my-alerts {
+            display:inline-flex; align-items:center; gap:6px; min-height:30px;
+            padding:0 10px; border:1px solid var(--border); border-radius:8px;
+            background:var(--surface-2); color:var(--text-muted);
+            font-size:.69rem; font-weight:700; white-space:nowrap;
+        }
+        .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
+        .tf-my-alerts .tf-alert-count {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:18px; height:18px; padding:0 5px; border-radius:999px;
+            background:#f59e0b; color:#fff; font-size:.64rem; line-height:1;
+        }
+        .tf-personal-alert {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:20px; height:20px; padding:0 5px; margin-left:auto;
+            border-radius:999px; background:#fff7ed; color:#ea580c;
+            border:1px solid #fed7aa; font-size:.68rem; font-weight:800;
+            box-shadow:0 1px 2px rgba(15,23,42,.06); flex:0 0 auto;
+        }
+        .tf-personal-alert.small { min-width:18px; height:18px; font-size:.62rem; padding:0 4px; }
+        .tf-project-alert {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:18px; height:18px; padding:0 5px; margin-left:5px;
+            border-radius:999px; background:#fff7ed; color:#ea580c;
+            border:1px solid #fed7aa; font-size:.61rem; font-weight:800; vertical-align:middle;
+        }
         .hdr-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .hdr-sep { width: 1px; height: 22px; background: var(--border); flex: none; }
         .btn, .filter-btn { white-space: nowrap; }
@@ -771,6 +799,10 @@
             <div class="tf-user-badge" id="tfUserBadge" title="V26 — identification via TEST_Utilisateur">
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
+            </div>
+            <div class="tf-my-alerts" id="tfMyAlerts" title="V27 — alertes personnelles">
+                🔔 <span>Mes tâches</span>
+                <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
             </div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
@@ -1578,6 +1610,56 @@ let currentUser = {
             }
         }
 
+        // V27 — Alertes personnelles.
+        // Aucun stockage supplémentaire : le compteur est calculé à partir de Tasks.assignees.
+        // Une alerte = tâche attribuée à l'utilisateur courant, non terminée.
+        function isPersonalAlertTask(task) {
+            if (!currentUser?.eligible || !currentUser?.email || !task) return false;
+            const status = getEffectiveStatusValue(task);
+            if (TF.isTerminal(statusCfg, status) || Number(task.progression || 0) >= 100) return false;
+            return getAssignees(task).some(id => {
+                const member = team.find(m => Number(m.id) === Number(id));
+                return normalizeEmail(member?.email) === normalizeEmail(currentUser.email);
+            });
+        }
+
+        function getPersonalAlertTasks() {
+            return currentUser?.eligible ? (tasks || []).filter(isPersonalAlertTask) : [];
+        }
+
+        function getPersonalAlertCountForProject(projectId) {
+            if (!currentUser?.eligible) return 0;
+            return (tasks || []).filter(t =>
+                Number(t.projet) === Number(projectId) && isPersonalAlertTask(t)
+            ).length;
+        }
+
+        function updatePersonalAlertsBadge() {
+            const box = document.getElementById('tfMyAlerts');
+            const countEl = document.getElementById('tfMyAlertsCount');
+            if (!box || !countEl) return;
+
+            if (!currentUser?.eligible) {
+                box.style.display = 'none';
+                box.title = 'Alertes personnelles réservées aux membres de la Direction.';
+                return;
+            }
+
+            const count = getPersonalAlertTasks().length;
+            countEl.textContent = String(count);
+            box.style.display = 'inline-flex';
+            box.classList.toggle('has-alerts', count > 0);
+            box.title = count
+                ? `${count} tâche${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''} vous ${count > 1 ? 'sont' : 'est'} attribuée${count > 1 ? 's' : ''}.`
+                : 'Aucune tâche active ne vous est attribuée.';
+        }
+
+        function personalAlertHtml(task, small = false) {
+            return isPersonalAlertTask(task)
+                ? `<span class="tf-personal-alert${small ? ' small' : ''}" title="Tâche active attribuée à vous">🔔</span>`
+                : '';
+        }
+
         async function loadCurrentUserContext() {
             currentUser = { email:'', name:'', service:'', eligible:false, status:'pending' };
             updateCurrentUserBadge();
@@ -1633,6 +1715,7 @@ let currentUser = {
                     name: currentUser.name,
                     eligible: currentUser.eligible
                 });
+                console.info('[V27] Alertes personnelles initiales:', getPersonalAlertTasks().length);
             } catch (e) {
                 currentUser.status = 'error';
                 currentUser.error = e?.message || String(e);
@@ -1655,6 +1738,7 @@ let currentUser = {
             // normalisées uniquement pour l'affichage et les sauvegardes.
             statusCfg = TF.buildStatusConfig(TF.DEFAULT_STATUSES, 'v24-fr');
             await loadCurrentUserContext();
+            updatePersonalAlertsBadge();
             updateFilterMenus(); render();
         }
 
@@ -1947,10 +2031,11 @@ let currentUser = {
             const ft = getFilteredTasks();
             const columns = buildColumns(ft);
             
-            container.innerHTML = columns.map(col => `
+            updatePersonalAlertsBadge();
+container.innerHTML = columns.map(col => `
                 <div class="kanban-column ${groupBy === 'projet' && col.key !== 'none' ? 'project-column' : ''}" data-key="${col.key}">
                     <div class="column-header ${groupBy === 'projet' && col.key !== 'none' ? 'project-drag-handle' : ''}" ${groupBy === 'projet' && col.key !== 'none' ? 'title="Faire glisser pour déplacer le projet"' : ''}>
-                        <span class="column-title">${col.icon || ''} <span class="project-title-text">${escapeHtml(col.label)}</span> <span class="column-count">${col.tasks.length}</span></span>
+                        <span class="column-title">${col.icon || ''} <span class="project-title-text">${escapeHtml(col.label)}</span>${(groupBy === 'projet' && col.key !== 'none') ? (() => { const n = getPersonalAlertCountForProject(col.key); return n ? `<span class="tf-project-alert" title="${n} tâche(s) active(s) vous concernant">🔔 ${n}</span>` : ''; })() : ''} <span class="column-count">${col.tasks.length}</span></span>
                         <button class="column-add" onclick="event.stopPropagation();openCreatePanelForColumn('${col.key}')" title="Ajouter">+</button>
                     </div>
                     <div class="column-body ${col.tasks.length ? '' : 'is-empty'}" id="col-${col.key}">${col.tasks.length ? col.tasks.map(t => renderCard(t)).join('') : renderEmptyColumn(col)}</div>
@@ -2052,7 +2137,7 @@ let currentUser = {
                     <span class="tf-subtask-check">✓</span>
                     <span class="tf-subtask-title">↳ ${escapeHtml(t.titre || 'Sans titre')}</span>
                     <span class="tf-subtask-state ${stateClass}">${stateLabel}</span>
-                    <span class="tf-subtask-alert-slot" aria-hidden="true"></span>
+                    ${personalAlertHtml(t, true)}
                 </div>
                 <div class="tf-subtask-meta">
                     ${dates ? `<span>📅 ${dates}</span>` : ''}
@@ -2095,7 +2180,7 @@ let currentUser = {
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
-                    <span class="tf-alert-slot" aria-hidden="true"></span>
+                    ${personalAlertHtml(t)}
                 </div>
                 <div class="card-meta">
                     <span class="tf-badge tf-p${p}">${PRIORITY_LABELS[p]}</span>
