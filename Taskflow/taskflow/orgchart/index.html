@@ -733,24 +733,41 @@ async function getMyUserId() {
 
 async function loadGrist() {
   const tables = await grist.docApi.listTables();
-  // Team + Tasks + Projects (peuvent exister) ; Entites = annuaire (opt-in)
-  const fetch = async (t) => tables.includes(t) ? colObjToRows(await grist.docApi.fetchTable(t)) : null;
-  const team = await fetch('Team') || [];
-  const utilisateurs = await fetch('Utilisateurs') || [];
-  const tasks = await fetch('Tasks') || [];
-  S.projects = await fetch('Projects') || [];
+  // IMPORTANT : une table absente ou non lisible ne doit plus faire basculer
+  // tout l'organigramme en mode DEMO. On charge chaque source séparément.
+  const fetch = async (t) => {
+    if (!tables.includes(t)) {
+      console.info('[Taskflow Organigramme] table absente : ' + t);
+      return [];
+    }
+    try {
+      return colObjToRows(await grist.docApi.fetchTable(t));
+    } catch (e) {
+      console.warn('[Taskflow Organigramme] lecture impossible pour ' + t + ' :', e && e.message ? e.message : e);
+      return [];
+    }
+  };
+
+  // Connexion Grist validée dès que listTables() fonctionne.
+  S.gOk = true;
+  S.alone = false;
+
+  const team = await fetch('Team');
+  const utilisateurs = await fetch('Utilisateurs');
+  const tasks = await fetch('Tasks');
+  S.projects = await fetch('Projects');
   const entites = await fetch('Entites');
 
   S.utilisateurs = utilisateurs;
   S.team = team.map(t => ({ id: t.id, nom: t.nom, email: t.email || '', role: t.role || '', entite: t.entite || null, responsable: t.responsable || null, capaciteHebdo: Number(t.capaciteHebdo) || 35 }));
   S.tasks = tasks;
-  S.entites = entites ? entites.map(e => ({ id: e.id, nom: e.nom, parent: e.parent || null, niveau: e.niveau || 'unite', chef: e.chef || null })) : [];
+  S.entites = entites.map(e => ({ id: e.id, nom: e.nom, parent: e.parent || null, niveau: e.niveau || 'unite', chef: e.chef || null }));
 
-  S.entries = (await fetch('TimeEntries') || []).map(e => ({ membre: e.membre, date: e.date, heures: e.heures }));
+  const entries = await fetch('TimeEntries');
+  S.entries = entries.map(e => ({ membre: e.membre, date: e.date, heures: e.heures }));
   computeCharge();   // planifie (Tasks.charges) sur la periode
   computeRealise();  // reel (TimeEntries) sur la periode
   S.meUserId = await getMyUserId();
-  S.gOk = true;
   render();
 }
 
@@ -924,10 +941,11 @@ document.getElementById('aclModal').addEventListener('click', (e) => { if (e.tar
       if (window.grist && grist.docApi && !grist.docApi._tfGuarded) { const raw = grist.docApi.applyUserActions.bind(grist.docApi); grist.docApi._tfGuarded = true; grist.docApi.applyUserActions = async function (a) { if (ro()) { const e = new Error('Document en lecture seule'); e.tfReadOnly = true; throw e; } return await raw(a); }; }
     })();
     await new Promise(r => setTimeout(r, 250));
-    await grist.docApi.listTables(); // test API
-    grist.onRecords(() => { if (S.gOk) loadGrist().catch(() => {}); });
+    await grist.docApi.listTables(); // test API : seul cet appel peut déclencher le mode demo
+    grist.onRecords(() => { if (S.gOk) loadGrist().catch(e => console.warn('[Taskflow Organigramme] rechargement impossible :', e)); });
     await loadGrist();
   } catch (e) {
+    console.warn('[Taskflow Organigramme] Grist API indisponible : mode demo.', e);
     loadDemo();
   }
 })();
