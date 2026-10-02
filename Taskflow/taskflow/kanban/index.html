@@ -2,9 +2,9 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <!-- Taskflow V24 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
+    <!-- Taskflow V26 : socle V25 + attribution personnelle et alertes utilisateur -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban - TaskFlow V27</title>
+    <title>Kanban - TaskFlow V26</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -538,42 +538,6 @@
         .hdr-group { display: flex; align-items: center; gap: 8px; }
         .hdr-glabel { font-size: 0.72rem; color: var(--text-muted); font-weight: 550; white-space: nowrap; }
         .hdr-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
-        /* V26 — identité utilisateur */
-        .tf-user-badge { display:inline-flex; align-items:center; gap:6px; min-height:30px; max-width:280px; padding:0 9px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text-muted); font-size:.69rem; font-weight:650; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .tf-user-badge .tf-user-dot { width:7px; height:7px; border-radius:50%; background:#94a3b8; flex:0 0 7px; }
-        .tf-user-badge.ok .tf-user-dot { background:#10b981; }
-        .tf-user-badge.warn .tf-user-dot { background:#f59e0b; }
-        .tf-user-badge.error .tf-user-dot { background:#ef4444; }
-        .tf-user-badge .tf-user-service { font-weight:500; color:var(--text-muted); }
-        @media(max-width:1100px){ .tf-user-badge { max-width:210px; } }
-
-        /* V28 — alertes personnelles : visuelles uniquement, sans nouvelle table */
-        .tf-my-alerts {
-            display:inline-flex; align-items:center; gap:6px; min-height:30px;
-            padding:0 10px; border:1px solid var(--border); border-radius:8px;
-            background:var(--surface-2); color:var(--text-muted);
-            font-size:.69rem; font-weight:700; white-space:nowrap;
-        }
-        .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
-        .tf-my-alerts .tf-alert-count {
-            display:inline-flex; align-items:center; justify-content:center;
-            min-width:18px; height:18px; padding:0 5px; border-radius:999px;
-            background:#f59e0b; color:#fff; font-size:.64rem; line-height:1;
-        }
-        .tf-personal-alert {
-            display:inline-flex; align-items:center; justify-content:center;
-            min-width:20px; height:20px; padding:0 5px; margin-left:auto;
-            border-radius:999px; background:#fff7ed; color:#ea580c;
-            border:1px solid #fed7aa; font-size:.68rem; font-weight:800;
-            box-shadow:0 1px 2px rgba(15,23,42,.06); flex:0 0 auto;
-        }
-        .tf-personal-alert.small { min-width:18px; height:18px; font-size:.62rem; padding:0 4px; }
-        .tf-project-alert {
-            display:inline-flex; align-items:center; justify-content:center;
-            min-width:18px; height:18px; padding:0 5px; margin-left:5px;
-            border-radius:999px; background:#fff7ed; color:#ea580c;
-            border:1px solid #fed7aa; font-size:.61rem; font-weight:800; vertical-align:middle;
-        }
         .hdr-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .hdr-sep { width: 1px; height: 22px; background: var(--border); flex: none; }
         .btn, .filter-btn { white-space: nowrap; }
@@ -585,6 +549,31 @@
         .task-card { position: relative; }
         .card-header { position: relative; padding-right: 28px; }
         .tf-alert-slot { position:absolute; top:0; right:0; width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 24px; }
+        .tf-alert-slot.active { background:var(--warning-light); color:var(--warn-ink); border:1px solid rgba(240,152,45,.35); box-shadow:0 1px 2px rgba(16,24,40,.06); }
+        .tf-alert-slot .tf-alert-bell { font-size:13px; line-height:1; }
+        .tf-alert-slot .tf-alert-count { min-width:15px; height:15px; padding:0 3px; margin-left:2px; border-radius:999px; background:var(--danger); color:#fff; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+        .tf-subtask-alert-slot { margin-left:auto; min-width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; }
+        .tf-subtask-alert-slot.active { background:var(--warning-light); color:var(--warn-ink); border:1px solid rgba(240,152,45,.35); }
+        .tf-personal-alert-btn { position:relative; min-width:38px; padding:6px 9px; gap:5px; }
+        .tf-personal-alert-btn .tf-bell-icon { font-size:15px; line-height:1; }
+        .tf-personal-alert-btn .tf-alert-count-top { min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--danger); color:#fff; font-size:10px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+        .tf-personal-alert-btn.no-alert { color:var(--text-muted); }
+        .tf-personal-alert-btn.alert-on { background:var(--warning-light); border-color:#f2c37b; color:var(--warn-ink); }
+        .tf-personal-alert-menu { position:fixed; top:58px; right:16px; width:min(380px,calc(100vw - 24px)); max-height:min(70vh,560px); overflow:auto; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg); z-index:1200; display:none; }
+        .tf-personal-alert-menu.open { display:block; }
+        .tf-alert-menu-head { padding:13px 14px 10px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+        .tf-alert-menu-head strong { font-size:.82rem; }
+        .tf-alert-menu-head small { display:block; margin-top:3px; color:var(--text-muted); font-size:.68rem; }
+        .tf-alert-project { padding:8px 14px 4px; color:var(--text-muted); font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+        .tf-alert-item { width:100%; border:0; border-top:1px solid var(--border); background:var(--card-bg); color:var(--text); padding:9px 14px; display:flex; align-items:center; gap:9px; text-align:left; cursor:pointer; }
+        .tf-alert-item:hover { background:var(--bg); }
+        .tf-alert-item-bell { width:24px; height:24px; border-radius:7px; background:var(--warning-light); color:var(--warn-ink); display:flex; align-items:center; justify-content:center; flex:0 0 24px; }
+        .tf-alert-item-main { min-width:0; flex:1; }
+        .tf-alert-item-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.74rem; font-weight:650; }
+        .tf-alert-item-meta { display:block; margin-top:2px; color:var(--text-muted); font-size:.65rem; }
+        .tf-alert-empty { padding:20px 14px; color:var(--text-muted); font-size:.74rem; text-align:center; }
+        .tf-project-alert-count { display:inline-flex; align-items:center; gap:3px; height:19px; padding:0 6px; border-radius:999px; background:var(--warning-light); color:var(--warn-ink); font-size:.61rem; font-weight:800; }
+        .tf-alert-identity-note { margin:10px 14px 14px; padding:9px 10px; border-radius:8px; background:var(--warning-light); color:var(--warn-ink); font-size:.68rem; line-height:1.4; }
         .tf-hierarchy-children { margin-top:10px; padding-left:13px; position:relative; }
         .tf-hierarchy-children::before { content:''; position:absolute; left:3px; top:0; bottom:8px; width:1px; background:var(--border-dark); }
         .tf-subtask-preview { position:relative; margin:6px 0 0; padding:8px 9px 8px 13px; border:1px solid var(--border); border-radius:8px; background:var(--bg); cursor:pointer; min-height:54px; }
@@ -796,14 +785,6 @@
             </div>
         </div>
         <div class="hdr-right">
-            <div class="tf-user-badge" id="tfUserBadge" title="V28 — identification via TEST_Utilisateur + liaison Team">
-                <span class="tf-user-dot"></span>
-                <span id="tfUserBadgeText">Utilisateur : vérification…</span>
-            </div>
-            <div class="tf-my-alerts" id="tfMyAlerts" title="V27 — alertes personnelles">
-                🔔 <span>Mes tâches</span>
-                <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
-            </div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
                 <button class="filter-btn" id="filterBtn" onclick="toggleFilterMenu('all')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg> Filtres<span class="filter-count" id="filterCount" style="display:none">0</span></button>
@@ -812,6 +793,7 @@
             <div class="hdr-sep"></div>
             <button class="btn tf-hierarchy-btn" id="btnShowSubs" onclick="toggleShowSubtasks()" title="Afficher ou masquer les sous-tâches dans les cartes">↳ Hiérarchie</button>
             <button class="btn project-manager-main" onclick="openProjectManager()" title="Créer, renommer, colorer et réordonner les projets">⚙ Gérer les projets</button>
+            <button class="btn tf-personal-alert-btn no-alert" id="personalAlertBtn" onclick="togglePersonalAlerts(event)" title="Mes tâches et alertes personnelles" aria-haspopup="true" aria-expanded="false"><span class="tf-bell-icon">🔔</span><span class="tf-alert-count-top" id="personalAlertCount" style="display:none">0</span></button>
             <div class="filter-dropdown" id="moreDropdown">
                 <button class="btn icon-btn" onclick="toggleFilterMenu('more')" title="Plus d'actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></button>
                 <div class="filter-menu" id="filterMoreMenu" style="right:0;left:auto;min-width:200px">
@@ -824,6 +806,7 @@
         </div>
     </div>
     <div class="filter-chips" id="filterChips" style="display:none"></div>
+    <div class="tf-personal-alert-menu" id="personalAlertMenu" role="menu" aria-label="Mes alertes personnelles"></div>
     <div class="project-manager-overlay" id="projectManagerOverlay" onclick="if(event.target===this)closeProjectManager()">
         <div class="project-manager" role="dialog" aria-modal="true" aria-labelledby="projectManagerTitle">
             <div class="project-manager-head">
@@ -1294,17 +1277,15 @@
         // STATE
         // ═══════════════════════════════════════════════════════════════════════
         let tasks = [], team = [], projects = [], gristReady = false;
-
-// V26 — Identification de l'utilisateur courant.
-// Le pont TEST_Utilisateur est lu avec les règles d'accès Grist.
-// Cette version n'applique AUCUN filtrage aux tâches : le Kanban reste global.
-let currentUser = {
-    email: '',
-    name: '',
-    service: '',
-    eligible: false,
-    status: 'pending'
-};
+        // V26 : identité de l'utilisateur courant + alertes personnelles.
+        let utilisateurs = [];
+        let currentUserEmail = null;
+        let currentUser = null;
+        let currentUserStatus = 'unknown'; // unknown | ready | not-direction | unavailable | readonly
+        let personalAlertTasks = [];
+        let personalAlertTeamIds = [];
+        let personalAlertOpen = false;
+        let taskflowSessionRowId = null;
         let TASK_COLS = new Set(); // colonnes reelles de la table Tasks (sweet spot : charges/dateCloture n'existent que si le widget Plan a ete ouvert)
         let CRA_ACTIVE = false; // si la Feuille de temps (TimeEntries) est active, tempsPasse devient un rollup CRA -> saisie manuelle figee (anti-doublon)
         let statusCfg = TF.buildStatusConfig(TF.DEFAULT_STATUSES, 'default'); // #1 : statuts dynamiques, alimente par TF.loadStatusConfig en mode Grist
@@ -1392,6 +1373,18 @@ let currentUser = {
         const getChoiceListArray = (val) => { if (!val) return []; if (Array.isArray(val)) return val[0] === 'L' ? val.slice(1) : val; return []; };
         const toGristChoiceList = (arr) => arr && arr.length ? ['L', ...arr] : null;
         const getAssignees = (t) => getRefListArray(t?.assignees);
+        const normalizeEmail = (v) => String(v || '').trim().toLowerCase();
+        const isPersonalAlertTask = (t) => {
+            if (!t || TF.isTerminal(statusCfg, getEffectiveStatusValue(t))) return false;
+            const aa = getAssignees(t);
+            return personalAlertTeamIds.some(id => aa.includes(Number(id)));
+        };
+        function getPersonalAlertCountForProject(projectId) {
+            return personalAlertTasks.filter(t => Number(t.projet || 0) === Number(projectId || 0)).length;
+        }
+        function getPersonalAlertProjectLabel(projectId) {
+            return getProjectName(projectId) || 'Sans projet';
+        }
         // V17: normalisation des références Grist (Ref vide = 0 / null selon le contexte)
         const refId = (v) => { if (Array.isArray(v)) v = v.length > 1 && v[0] === 'L' ? v[1] : v[0]; const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
         const hasParentRef = (t) => !!refId(t?.parentTask);
@@ -1578,244 +1571,12 @@ let currentUser = {
                 ]);
             } catch (e) { console.log('Seed error:', e); }
         }
-        function normalizeEmail(value) {
-            return String(value || '').trim().toLowerCase();
-        }
-
-        function updateCurrentUserBadge() {
-            const el = document.getElementById('tfUserBadge');
-            const txt = document.getElementById('tfUserBadgeText');
-            if (!el || !txt) return;
-
-            el.classList.remove('ok','warn','error');
-
-            if (currentUser.status === 'ok') {
-                el.classList.add(currentUser.eligible ? 'ok' : 'warn');
-                const label = currentUser.name || currentUser.email || 'Utilisateur';
-                const service = currentUser.service ? ` · ${currentUser.service}` : '';
-                txt.textContent = `👤 ${label}${service}`;
-                el.title = `Utilisateur courant : ${currentUser.email}${service ? ' — ' + currentUser.service : ''}`;
-            } else if (currentUser.status === 'not-configured') {
-                el.classList.add('warn');
-                txt.textContent = '👤 Identité non configurée';
-                el.title = 'V26 : TEST_Utilisateur est absente ou ne contient aucune ligne exploitable.';
-            } else if (currentUser.status === 'not-found') {
-                el.classList.add('warn');
-                txt.textContent = '👤 Utilisateur non identifié';
-                el.title = 'V26 : aucune ligne TEST_Utilisateur ne permet d’identifier l’utilisateur courant.';
-            } else {
-                el.classList.add('error');
-                txt.textContent = '👤 Identification indisponible';
-                el.title = currentUser.error || 'V26 : erreur lors de la lecture de TEST_Utilisateur.';
-            }
-        }
-
-        // V27 — Alertes personnelles.
-        // Aucun stockage supplémentaire : le compteur est calculé à partir de Tasks.assignees.
-        // Une alerte = tâche attribuée à l'utilisateur courant, non terminée.
-        // V28 — Liaison robuste entre l'identité Grist et la référence Team.
-        // Dans le document réel, Team.email peut être vide ou légèrement différent
-        // de l'adresse utilisée par Grist. On conserve la correspondance exacte par
-        // email, puis un rapprochement prudent nom <-> partie locale de l'email.
-        function normalizePersonText(value) {
-            return String(value || '')
-                .normalize('NFD')
-                .replace(/[\\u0300-\\u036f]/g, '')
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '');
-        }
-
-        function personNameTokens(value) {
-            return String(value || '')
-                .normalize('NFD')
-                .replace(/[\\u0300-\\u036f]/g, '')
-                .toLowerCase()
-                .split(/[^a-z0-9]+/)
-                .filter(Boolean);
-        }
-
-        function levenshteinDistance(a, b) {
-            a = String(a || '');
-            b = String(b || '');
-            if (a === b) return 0;
-            if (!a.length) return b.length;
-            if (!b.length) return a.length;
-            let prev = Array.from({length: b.length + 1}, (_, i) => i);
-            for (let i = 1; i <= a.length; i++) {
-                const cur = [i];
-                for (let j = 1; j <= b.length; j++) {
-                    cur[j] = Math.min(
-                        cur[j - 1] + 1,
-                        prev[j] + 1,
-                        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-                    );
-                }
-                prev = cur;
-            }
-            return prev[b.length];
-        }
-
-        function teamMemberMatchesCurrentEmail(member, email) {
-            const target = normalizeEmail(email);
-            if (!member || !target) return false;
-
-            // 1. Correspondance normale : Team.email = adresse Grist.
-            if (normalizeEmail(member.email) === target) return true;
-
-            const local = target.split('@')[0] || '';
-            const localTokens = personNameTokens(local);
-            const nameTokens = personNameTokens(member.nom);
-
-            if (localTokens.length < 2 || nameTokens.length < 2) return false;
-
-            // 2. Correspondance exacte des deux parties (ex. prenom.nom).
-            const localNorm = normalizePersonText(local);
-            const nameNorm = normalizePersonText(member.nom);
-            if (localNorm === nameNorm) return true;
-
-            // 3. Tolérance d'une petite différence de frappe dans le nom de famille.
-            // Le prénom doit être identique et le nom très proche.
-            if (localTokens[0] === nameTokens[0]) {
-                const surnameEmail = localTokens[localTokens.length - 1];
-                const surnameTeam = nameTokens[nameTokens.length - 1];
-                const maxLen = Math.max(surnameEmail.length, surnameTeam.length);
-                const distance = levenshteinDistance(surnameEmail, surnameTeam);
-                if (maxLen >= 4 && distance <= 1) return true;
-            }
-
-            return false;
-        }
-
-        function getCurrentUserTeamMembers() {
-            if (!currentUser?.email) return [];
-            return (team || []).filter(member =>
-                teamMemberMatchesCurrentEmail(member, currentUser.email)
-            );
-        }
-
-        function isPersonalAlertTask(task) {
-            if (!currentUser?.eligible || !currentUser?.email || !task) return false;
-            const status = getEffectiveStatusValue(task);
-            if (TF.isTerminal(statusCfg, status) || Number(task.progression || 0) >= 100) return false;
-
-            const myTeamIds = currentUser.teamIds || getCurrentUserTeamMembers().map(m => Number(m.id));
-            return getAssignees(task).some(id => myTeamIds.includes(Number(id)));
-        }
-
-        function getPersonalAlertTasks() {
-            return currentUser?.eligible ? (tasks || []).filter(isPersonalAlertTask) : [];
-        }
-
-        function getPersonalAlertCountForProject(projectId) {
-            if (!currentUser?.eligible) return 0;
-            return (tasks || []).filter(t =>
-                Number(t.projet) === Number(projectId) && isPersonalAlertTask(t)
-            ).length;
-        }
-
-        function updatePersonalAlertsBadge() {
-            const box = document.getElementById('tfMyAlerts');
-            const countEl = document.getElementById('tfMyAlertsCount');
-            if (!box || !countEl) return;
-
-            if (!currentUser?.eligible) {
-                box.style.display = 'none';
-                box.title = 'Alertes personnelles réservées aux membres de la Direction.';
-                return;
-            }
-
-            const count = getPersonalAlertTasks().length;
-            countEl.textContent = String(count);
-            box.style.display = 'inline-flex';
-            box.classList.toggle('has-alerts', count > 0);
-            box.title = count
-                ? `${count} tâche${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''} vous ${count > 1 ? 'sont' : 'est'} attribuée${count > 1 ? 's' : ''}.`
-                : 'Aucune tâche active ne vous est attribuée.';
-        }
-
-        function personalAlertHtml(task, small = false) {
-            return isPersonalAlertTask(task)
-                ? `<span class="tf-personal-alert${small ? ' small' : ''}" title="Tâche active attribuée à vous">🔔</span>`
-                : '';
-        }
-
-        async function loadCurrentUserContext() {
-            currentUser = { email:'', name:'', service:'', eligible:false, status:'pending' };
-            updateCurrentUserBadge();
-
-            try {
-                const raw = await grist.docApi.fetchTable('TEST_Utilisateur');
-                const rows = convertGristToRecords(raw).map(r => ({
-                    cible: normalizeEmail(r.CibleEmail),
-                    creator: normalizeEmail(r.UtilisateurEmail),
-                    service: String(r.ServiceUtilisateur || '').trim()
-                })).filter(r => r.cible);
-
-                if (!rows.length) {
-                    currentUser.status = 'not-configured';
-                    updateCurrentUserBadge();
-                    return;
-                }
-
-                // Propriétaire : plusieurs lignes peuvent être visibles.
-                // La ligne dont CibleEmail = UtilisateurEmail identifie le propriétaire.
-                let email = '';
-                const selfRow = rows.find(r => r.creator && r.creator === r.cible);
-                if (selfRow) {
-                    email = selfRow.cible;
-                } else {
-                    // Éditeur soumis à une règle de ligne : normalement une seule
-                    // ligne est visible. On accepte aussi plusieurs lignes si la cible
-                    // restante est unique.
-                    const unique = [...new Set(rows.map(r => r.cible).filter(Boolean))];
-                    if (unique.length === 1) email = unique[0];
-                }
-
-                if (!email) {
-                    currentUser.status = 'not-found';
-                    updateCurrentUserBadge();
-                    return;
-                }
-
-                const matching = rows.find(r => r.cible === email) || {};
-                const matchedMembers = (team || []).filter(t =>
-                    teamMemberMatchesCurrentEmail(t, email)
-                );
-
-                currentUser.email = email;
-                currentUser.service = matching.service || '';
-                currentUser.teamIds = matchedMembers.map(m => Number(m.id)).filter(Number.isFinite);
-                currentUser.teamName = matchedMembers.length === 1 ? (matchedMembers[0].nom || '') : '';
-                currentUser.name = currentUser.teamName || email;
-                currentUser.eligible = currentUser.service.toLowerCase() === 'direction';
-                currentUser.status = 'ok';
-
-                updateCurrentUserBadge();
-
-                console.info('[V26] Utilisateur courant identifié:', {
-                    email: currentUser.email,
-                    service: currentUser.service,
-                    name: currentUser.name,
-                    eligible: currentUser.eligible
-                });
-                console.info('[V28] Correspondance Team:', {
-                    teamIds: currentUser.teamIds,
-                    teamName: currentUser.teamName,
-                    teamMembers: matchedMembers.map(m => ({id: m.id, nom: m.nom, email: m.email}))
-                });
-                console.info('[V28] Alertes personnelles initiales:', getPersonalAlertTasks().length);
-            } catch (e) {
-                currentUser.status = 'error';
-                currentUser.error = e?.message || String(e);
-                console.error('[V26] Identification utilisateur:', e);
-                updateCurrentUserBadge();
-            }
-        }
-
         async function loadAllData() {
             try { const _raw = await grist.docApi.fetchTable('Tasks'); TASK_COLS = new Set(Object.keys(_raw || {})); tasks = convertGristToRecords(_raw); } catch (e) { tasks = []; }
             try { team = convertGristToRecords(await grist.docApi.fetchTable('Team')); } catch (e) { team = []; }
             try { projects = convertGristToRecords(await grist.docApi.fetchTable('Projects')); } catch (e) { projects = []; }
+            try { utilisateurs = convertGristToRecords(await grist.docApi.fetchTable('Utilisateurs')); } catch (e) { utilisateurs = []; }
+            try { await refreshPersonalIdentity(); } catch (e) { console.warn('Taskflow identity unavailable:', e); currentUserStatus = 'unavailable'; currentUserEmail = null; currentUser = null; personalAlertTasks = []; personalAlertTeamIds = []; }
             // V3 : l'ordre des projets est conservé dans Projects.ordre.
             projects = sortProjectsByOrder(projects);
             if (gristReady || !projects.length) { /* rien */ }
@@ -1825,8 +1586,6 @@ let currentUser = {
             // Les éventuelles anciennes valeurs (review, libellés anglais...) sont
             // normalisées uniquement pour l'affichage et les sauvegardes.
             statusCfg = TF.buildStatusConfig(TF.DEFAULT_STATUSES, 'v24-fr');
-            await loadCurrentUserContext();
-            updatePersonalAlertsBadge();
             updateFilterMenus(); render();
         }
 
@@ -2119,11 +1878,10 @@ let currentUser = {
             const ft = getFilteredTasks();
             const columns = buildColumns(ft);
             
-            updatePersonalAlertsBadge();
-container.innerHTML = columns.map(col => `
+            container.innerHTML = columns.map(col => `
                 <div class="kanban-column ${groupBy === 'projet' && col.key !== 'none' ? 'project-column' : ''}" data-key="${col.key}">
                     <div class="column-header ${groupBy === 'projet' && col.key !== 'none' ? 'project-drag-handle' : ''}" ${groupBy === 'projet' && col.key !== 'none' ? 'title="Faire glisser pour déplacer le projet"' : ''}>
-                        <span class="column-title">${col.icon || ''} <span class="project-title-text">${escapeHtml(col.label)}</span>${(groupBy === 'projet' && col.key !== 'none') ? (() => { const n = getPersonalAlertCountForProject(col.key); return n ? `<span class="tf-project-alert" title="${n} tâche(s) active(s) vous concernant">🔔 ${n}</span>` : ''; })() : ''} <span class="column-count">${col.tasks.length}</span></span>
+                        <span class="column-title">${col.icon || ''} <span class="project-title-text">${escapeHtml(col.label)}</span> ${groupBy === 'projet' && col.key !== 'none' && getPersonalAlertCountForProject(col.key) ? `<span class="tf-project-alert-count" title="Mes tâches actives dans ce projet">🔔 ${getPersonalAlertCountForProject(col.key)}</span>` : ''}<span class="column-count">${col.tasks.length}</span></span>
                         <button class="column-add" onclick="event.stopPropagation();openCreatePanelForColumn('${col.key}')" title="Ajouter">+</button>
                     </div>
                     <div class="column-body ${col.tasks.length ? '' : 'is-empty'}" id="col-${col.key}">${col.tasks.length ? col.tasks.map(t => renderCard(t)).join('') : renderEmptyColumn(col)}</div>
@@ -2225,7 +1983,7 @@ container.innerHTML = columns.map(col => `
                     <span class="tf-subtask-check">✓</span>
                     <span class="tf-subtask-title">↳ ${escapeHtml(t.titre || 'Sans titre')}</span>
                     <span class="tf-subtask-state ${stateClass}">${stateLabel}</span>
-                    ${personalAlertHtml(t, true)}
+                    ${isPersonalAlertTask(t) ? `<span class="tf-subtask-alert-slot active" title="Cette sous-tâche vous est attribuée" aria-label="Alerte personnelle">🔔</span>` : `<span class="tf-subtask-alert-slot" aria-hidden="true"></span>`}
                 </div>
                 <div class="tf-subtask-meta">
                     ${dates ? `<span>📅 ${dates}</span>` : ''}
@@ -2268,7 +2026,7 @@ container.innerHTML = columns.map(col => `
                 <div class="card-header">
                     <span class="card-title">${isChild ? '↳ ' : ''}${escapeHtml(t.titre) || 'Sans titre'}${children.length ? `<span class="tf-hierarchy-count">${children.length}</span>` : ''}</span>
                     ${typeIcon ? `<span class="card-type">${typeIcon}</span>` : ''}
-                    ${personalAlertHtml(t)}
+                    ${isPersonalAlertTask(t) ? `<span class="tf-alert-slot active" title="Cette tâche vous est attribuée" aria-label="Alerte personnelle"><span class="tf-alert-bell">🔔</span><span class="tf-alert-count">1</span></span>` : `<span class="tf-alert-slot" aria-hidden="true"></span>`}
                 </div>
                 <div class="card-meta">
                     <span class="tf-badge tf-p${p}">${PRIORITY_LABELS[p]}</span>
@@ -3055,6 +2813,145 @@ container.innerHTML = columns.map(col => `
                 try { await grist.docApi.applyUserActions([['RemoveRecord', 'Tasks', panelState.taskId]]); showToast('Supprimée', 'success'); await loadAllData(); closePanel(); } catch (e) { showToast('Erreur suppression', 'error'); }
             } else { tasks = tasks.filter(t => t.id !== panelState.taskId); showToast('Supprimée', 'success'); render(); closePanel(); }
         }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // V26 · IDENTITÉ ET ALERTES PERSONNELLES
+        // -----------------------------------------------------------------------
+        // Grist n'expose pas directement l'e-mail de l'utilisateur au Custom
+        // Widget. On utilise donc un petit mécanisme de session basé sur une
+        // colonne de formule d'initialisation dans Utilisateurs.
+        // La ligne de session est créée, lue puis supprimée immédiatement.
+        // Aucune table d'alertes n'est créée.
+        // ═══════════════════════════════════════════════════════════════════════
+        async function ensureTaskflowSessionColumn() {
+            if (!gristReady) return false;
+            let raw = null;
+            try { raw = await grist.docApi.fetchTable('Utilisateurs'); } catch (e) { return false; }
+            const cols = new Set(Object.keys(raw || {}));
+            if (cols.has('_taskflow_session_email')) return true;
+            try {
+                await grist.docApi.applyUserActions([[
+                    'AddColumn', 'Utilisateurs', '_taskflow_session_email',
+                    { type: 'Text', isFormula: false, formula: 'user.Email', recalcWhen: 0 }
+                ]]);
+                return true;
+            } catch (e) {
+                console.warn('Impossible de préparer _taskflow_session_email:', e);
+                return false;
+            }
+        }
+
+        async function readCurrentUserFromSession() {
+            currentUserEmail = null;
+            currentUser = null;
+            currentUserStatus = 'unavailable';
+            personalAlertTeamIds = [];
+            personalAlertTasks = [];
+            if (!gristReady) return;
+            if (TF.isReadOnly()) { currentUserStatus = 'readonly'; return; }
+            if (!Array.isArray(utilisateurs) || !utilisateurs.length) return;
+            if (!await ensureTaskflowSessionColumn()) return;
+            let createdId = null;
+            try {
+                const res = await grist.docApi.applyUserActions([[
+                    'AddRecord', 'Utilisateurs', null,
+                    { nom: '__TASKFLOW_SESSION__', _taskflow_session_email: null }
+                ]]);
+                createdId = Array.isArray(res?.retValues) ? Number(res.retValues[0]) : null;
+                taskflowSessionRowId = createdId;
+                if (!createdId) return;
+                const row = await grist.docApi.fetchSelectedRecord(createdId);
+                const email = normalizeEmail(row?._taskflow_session_email);
+                if (!email) return;
+                currentUserEmail = email;
+                currentUser = utilisateurs.find(u => normalizeEmail(u.email) === email) || null;
+                if (!currentUser) { currentUserStatus = 'unavailable'; return; }
+                const service = String(currentUser.Service ?? currentUser.service ?? '').trim().toLowerCase();
+                if (service !== 'direction') { currentUserStatus = 'not-direction'; return; }
+                personalAlertTeamIds = team.filter(m => normalizeEmail(m.email) === email && m.actif !== false).map(m => Number(m.id));
+                currentUserStatus = personalAlertTeamIds.length ? 'ready' : 'unavailable';
+            } catch (e) {
+                console.warn('Lecture utilisateur courant impossible:', e);
+                currentUserStatus = 'unavailable';
+            } finally {
+                if (createdId) {
+                    try { await grist.docApi.applyUserActions([['RemoveRecord', 'Utilisateurs', createdId]]); } catch (e) { console.warn('Nettoyage session Taskflow impossible:', e); }
+                }
+                taskflowSessionRowId = null;
+            }
+        }
+
+        async function refreshPersonalIdentity() {
+            await readCurrentUserFromSession();
+            personalAlertTasks = currentUserStatus === 'ready' ? tasks.filter(isPersonalAlertTask) : [];
+            renderPersonalAlertMenu();
+        }
+
+        function renderPersonalAlertMenu() {
+            const menu = document.getElementById('personalAlertMenu');
+            const btn = document.getElementById('personalAlertBtn');
+            const count = document.getElementById('personalAlertCount');
+            if (!menu || !btn || !count) return;
+            const n = personalAlertTasks.length;
+            count.textContent = String(n);
+            count.style.display = n ? 'inline-flex' : 'none';
+            btn.classList.toggle('alert-on', n > 0);
+            btn.classList.toggle('no-alert', n === 0);
+            const identityText = currentUserStatus === 'ready'
+                ? `${escapeHtml(currentUser?.nom || currentUserEmail || '')} · Direction`
+                : currentUserStatus === 'not-direction'
+                    ? 'Compte non rattaché à la Direction dans Utilisateurs.'
+                    : currentUserStatus === 'readonly'
+                        ? 'Lecture seule : l’identité personnelle n’est pas initialisée.'
+                        : 'Identité personnelle non disponible pour le moment.';
+            if (!n) {
+                menu.innerHTML = `<div class="tf-alert-menu-head"><strong>🔔 Mes tâches</strong><small>${identityText}</small></div><div class="tf-alert-empty">Aucune tâche active ne vous est attribuée.</div>${currentUserStatus !== 'ready' ? `<div class="tf-alert-identity-note">${identityText}</div>` : ''}`;
+                return;
+            }
+            const groups = new Map();
+            personalAlertTasks.forEach(t => {
+                const key = Number(t.projet || 0);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(t);
+            });
+            const body = [...groups.entries()].sort((a,b) => getPersonalAlertProjectLabel(a[0]).localeCompare(getPersonalAlertProjectLabel(b[0]), 'fr')).map(([pid, arr]) => {
+                const label = getPersonalAlertProjectLabel(pid);
+                return `<div class="tf-alert-project">${escapeHtml(label)} · ${arr.length}</div>${arr.map(t => {
+                    const due = t.dateEcheance ? gristToDate(t.dateEcheance) : null;
+                    const dueTxt = due ? due.toLocaleDateString('fr-FR') : 'Sans échéance';
+                    return `<button type="button" class="tf-alert-item" onclick="openPersonalAlertTask(${t.id})"><span class="tf-alert-item-bell">🔔</span><span class="tf-alert-item-main"><span class="tf-alert-item-title">${escapeHtml(t.titre || 'Sans titre')}</span><span class="tf-alert-item-meta">${escapeHtml(fStatusLabel(getEffectiveStatusValue(t)))} · ${escapeHtml(dueTxt)}</span></span></button>`;
+                }).join('')}`;
+            }).join('');
+            menu.innerHTML = `<div class="tf-alert-menu-head"><strong>🔔 Mes tâches · ${n}</strong><small>${identityText}</small></div>${body}`;
+        }
+
+        function togglePersonalAlerts(ev) {
+            if (ev) ev.stopPropagation();
+            personalAlertOpen = !personalAlertOpen;
+            const menu = document.getElementById('personalAlertMenu');
+            const btn = document.getElementById('personalAlertBtn');
+            if (menu) menu.classList.toggle('open', personalAlertOpen);
+            if (btn) btn.setAttribute('aria-expanded', personalAlertOpen ? 'true' : 'false');
+        }
+
+        function closePersonalAlerts() {
+            personalAlertOpen = false;
+            const menu = document.getElementById('personalAlertMenu');
+            const btn = document.getElementById('personalAlertBtn');
+            if (menu) menu.classList.remove('open');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+
+        function openPersonalAlertTask(taskId) {
+            closePersonalAlerts();
+            openTaskPanel(Number(taskId));
+        }
+
+        document.addEventListener('click', (ev) => {
+            const menu = document.getElementById('personalAlertMenu');
+            const btn = document.getElementById('personalAlertBtn');
+            if (personalAlertOpen && menu && btn && !menu.contains(ev.target) && !btn.contains(ev.target)) closePersonalAlerts();
+        });
 
         // ═══════════════════════════════════════════════════════════════════════
         // INIT
