@@ -101,6 +101,23 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .eact button.del { color: var(--over); border-color: transparent; margin-left: auto; }
 .eact button.del:hover { background: var(--over); color: #fff; }
 .prow { cursor: pointer; }
+
+/* Modale d'ajout/rattachement d'une personne — V1 anti-doublon */
+.person-modal { width: min(680px, 94vw); }
+.person-search { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 11px; font-size: .82rem; font-family: inherit; margin-bottom: 10px; outline: none; }
+.person-search:focus { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 14%, transparent); }
+.person-list { max-height: 48vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.person-choice { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit; }
+.person-choice:hover { border-color: var(--primary); background: var(--primary-light); }
+.person-choice .av { flex: 0 0 28px; }
+.person-choice .pc-main { min-width: 0; flex: 1; }
+.person-choice .pc-name { font-size: .82rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-choice .pc-meta { font-size: .68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-choice .pc-state { font-size: .64rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.person-choice .pc-state.same { color: var(--ok); }
+.person-empty { padding: 18px 10px; text-align: center; color: var(--text-muted); font-size: .78rem; }
+.person-create { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.person-create p { font-size: .72rem; color: var(--text-muted); margin-bottom: 7px; }
 /* Bouton + modale Droits (ACL) */
 .acl-btn { display: none; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); border-radius: 7px; padding: 5px 10px; font-size: .76rem; font-weight: 600; cursor: pointer; font-family: inherit; }
 .acl-btn:hover { color: var(--primary); border-color: var(--primary); }
@@ -160,6 +177,22 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
   <span class="li"><span class="sw" style="background:var(--warn)"></span> tension (85-100%)</span>
   <span class="li"><span class="sw" style="background:var(--over)"></span> surcharge (&gt; 100%)</span>
   <span class="li" style="margin-left:auto">Charge agregee par unite, periode courante — detail temporel par personne dans le widget Plan</span>
+</div>
+
+<div class="modal-ov" id="personModal" onclick="if(event.target===this) ocClosePersonModal()">
+  <div class="modal person-modal">
+    <h2>Ajouter une personne</h2>
+    <div class="sub" id="personModalSub">Choisissez une personne déjà présente dans Team pour éviter de créer un doublon.</div>
+    <input id="personSearch" class="person-search" type="search" placeholder="Rechercher par nom ou e-mail…" autocomplete="off">
+    <div id="personList" class="person-list"></div>
+    <div class="person-create">
+      <p>La création d'une nouvelle ligne Team reste possible uniquement si la personne n'existe pas encore.</p>
+      <button class="btn" type="button" onclick="ocCreateNewPerson()">+ Créer une nouvelle personne</button>
+    </div>
+    <div class="acts" style="margin-top:12px">
+      <button type="button" onclick="ocClosePersonModal()">Annuler</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-ov" id="aclModal">
@@ -424,10 +457,111 @@ window.ocAddSous = async (pid) => {
   const r = await grist.docApi.applyUserActions([['AddRecord', 'Entites', null, { nom: 'Nouvelle entite', niveau: 'equipe', parent: pid }]]).catch(() => null);
   if (r) S.selId = 'e:' + r.retValues[0]; await loadGrist();
 };
-window.ocAddPers = async (eid) => {
-  if (S.alone) { const nid = Math.max(0, ...S.team.map(p => p.id)) + 1; S.team.push({ id: nid, nom: 'Nouvelle personne', entite: eid, capaciteHebdo: 35 }); S.selId = 'p:' + nid; render(); return; }
-  const r = await grist.docApi.applyUserActions([['AddRecord', 'Team', null, { nom: 'Nouvelle personne', entite: eid, capaciteHebdo: 35 }]]).catch(() => null);
-  if (r) S.selId = 'p:' + r.retValues[0]; await loadGrist();
+let personModalEntityId = null;
+
+function ocClosePersonModal() {
+  const m = document.getElementById('personModal');
+  if (m) m.classList.remove('open');
+  personModalEntityId = null;
+}
+
+function ocRenderPersonChoices(query = '') {
+  const list = document.getElementById('personList');
+  if (!list) return;
+  const q = String(query || '').trim().toLowerCase();
+  const eid = personModalEntityId;
+  const people = S.team
+    .filter(p => {
+      if (!q) return true;
+      return String(p.nom || '').toLowerCase().includes(q) || String(p.email || '').toLowerCase().includes(q);
+    })
+    .slice()
+    .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr', { sensitivity: 'base' }));
+
+  if (!people.length) {
+    list.innerHTML = '<div class="person-empty">Aucune personne trouvée dans Team.</div>';
+    return;
+  }
+
+  list.innerHTML = people.map(p => {
+    const same = Number(p.entite || 0) === Number(eid || 0);
+    const currentEnt = S.entites.find(e => e.id === p.entite);
+    const meta = [p.email || '', currentEnt ? currentEnt.nom : 'Non rattachée'].filter(Boolean).join(' · ');
+    const state = same ? '<span class="pc-state same">Déjà dans cette entité</span>'
+      : '<span class="pc-state">' + (currentEnt ? 'Changer d’entité' : 'Non rattachée') + '</span>';
+    return '<button type="button" class="person-choice" onclick="ocAttachExistingPerson(' + p.id + ')">'
+      + '<span class="av">' + esc(initials(p.nom)) + '</span>'
+      + '<span class="pc-main"><span class="pc-name">' + esc(p.nom || 'Sans nom') + '</span>'
+      + '<span class="pc-meta">' + esc(meta || 'Aucune information complémentaire') + '</span></span>'
+      + state + '</button>';
+  }).join('');
+}
+
+window.ocAddPers = (eid) => {
+  personModalEntityId = Number(eid);
+  const ent = S.entites.find(e => e.id === personModalEntityId);
+  const sub = document.getElementById('personModalSub');
+  if (sub) sub.innerHTML = 'Rattacher une personne existante à <b>' + esc(ent ? ent.nom : 'cette entité') + '</b>. Une personne existante ne sera pas recréée.';
+  const search = document.getElementById('personSearch');
+  if (search) search.value = '';
+  ocRenderPersonChoices('');
+  const modal = document.getElementById('personModal');
+  if (modal) modal.classList.add('open');
+  setTimeout(() => { if (search) search.focus(); }, 0);
+};
+
+window.ocAttachExistingPerson = async (personId) => {
+  const p = S.team.find(x => x.id === Number(personId));
+  const eid = Number(personModalEntityId);
+  if (!p || !eid) return;
+  if (Number(p.entite || 0) === eid) {
+    S.selId = 'p:' + p.id;
+    ocClosePersonModal();
+    render();
+    return;
+  }
+  const oldEnt = S.entites.find(e => e.id === p.entite);
+  const newEnt = S.entites.find(e => e.id === eid);
+  const message = oldEnt
+    ? 'La personne « ' + p.nom + ' » est actuellement rattachée à « ' + oldEnt.nom + ' ».\n\nLa rattacher à « ' + (newEnt ? newEnt.nom : 'cette entité') + ' » la déplacera de son entité actuelle.\n\nContinuer ?'
+    : 'Rattacher « ' + p.nom + ' » à « ' + (newEnt ? newEnt.nom : 'cette entité') + ' » ?';
+  if (!window.confirm(message)) return;
+
+  if (S.alone) {
+    p.entite = eid;
+    S.selId = 'p:' + p.id;
+    ocClosePersonModal();
+    computeCharge();
+    render();
+    return;
+  }
+
+  const ok = await grist.docApi.applyUserActions([['UpdateRecord', 'Team', p.id, { entite: eid }]]).catch(e => {
+    console.warn('orgchart attach person:', e && e.message);
+    return null;
+  });
+  if (!ok) return;
+  S.selId = 'p:' + p.id;
+  ocClosePersonModal();
+  await loadGrist();
+};
+
+window.ocCreateNewPerson = async () => {
+  const eid = Number(personModalEntityId);
+  if (!eid) return;
+  if (!window.confirm('Créer une nouvelle ligne dans Team pour cette personne ?\n\nÀ utiliser uniquement si la personne n’existe pas déjà dans Team.')) return;
+  ocClosePersonModal();
+  if (S.alone) {
+    const nid = Math.max(0, ...S.team.map(p => p.id)) + 1;
+    S.team.push({ id: nid, nom: 'Nouvelle personne', email: '', role: '', entite: eid, responsable: null, capaciteHebdo: 35 });
+    S.selId = 'p:' + nid; render(); return;
+  }
+  const r = await grist.docApi.applyUserActions([['AddRecord', 'Team', null, { nom: 'Nouvelle personne', entite: eid, capaciteHebdo: 35 }]]).catch(e => {
+    console.warn('orgchart create person:', e && e.message);
+    return null;
+  });
+  if (r) S.selId = 'p:' + r.retValues[0];
+  await loadGrist();
 };
 window.ocDelE = async (id) => { S.entites = S.entites.filter(e => e.id !== id); S.selId = null; render(); await applyAct([['RemoveRecord', 'Entites', id]]); };
 window.ocDelP = async (id) => { S.team = S.team.filter(p => p.id !== id); S.selId = null; computeCharge(); render(); await applyAct([['RemoveRecord', 'Team', id]]); };
@@ -489,6 +623,8 @@ document.getElementById('measureSeg').querySelectorAll('button').forEach(b => b.
   b.classList.add('active'); S.measure = b.dataset.m; render();
 });
 function recompute() { computeCharge(); computeRealise(); render(); }
+document.getElementById('personSearch').addEventListener('input', (e) => ocRenderPersonChoices(e.target.value));
+
 document.getElementById('granSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#granSeg button').forEach(x => x.classList.remove('active'));
   b.classList.add('active'); S.gran = b.dataset.g; recompute();
