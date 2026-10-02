@@ -162,7 +162,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <body>
 <div class="topbar">
   <h1>Organigramme</h1>
-  <div class="status"><span class="dot" id="stDot"></span><span id="stTxt">Demo</span></div>
+  <div class="status"><span class="dot" id="stDot"></span><span id="stTxt">Connexion...</span></div>
   <span class="sp"></span>
   <div class="period" id="periodCtl">
     <span class="pchip">Periode courante</span>
@@ -245,7 +245,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <script>
 // =========================================================================
 //  TaskFlow - Organigramme (lentille pilotage de la repartition)
-//  V3 : Utilisateurs / Direction visible comme contrôle de correspondance avec Team.
+//  V5 : diagnostic de connexion Grist — aucune bascule automatique en mode Démo.
 // =========================================================================
 
 const S = {
@@ -320,7 +320,7 @@ function computeRealise() {
 // source d'heures active selon la mesure (planifie vs reel)
 function hoursOf(id) { return ((S.measure === 'realise' ? S.realise : S.charge)[id]) || 0; }
 
-// ---- Demo ----------------------------------------------------------------
+// ---- Demo legacy (jamais appelée automatiquement en V5) ----------------
 function loadDemo() {
   S.alone = true;
   S.entites = [
@@ -413,17 +413,39 @@ function renderEntite(e, depth) {
   return html;
 }
 
+function renderConnectionError(err) {
+  const msg = (err && (err.message || err.name)) ? (err.message || err.name) : String(err || 'Erreur inconnue');
+  S.lastError = msg;
+  S.gOk = false;
+  S.alone = false;
+  const st = document.getElementById('stTxt');
+  if (st) st.textContent = 'Erreur';
+  const dot = document.getElementById('stDot');
+  if (dot) dot.className = 'dot';
+  const wrap = document.getElementById('tree');
+  if (wrap) {
+    const tables = (S.lastTables || []).join(', ') || '(liste indisponible)';
+    wrap.innerHTML = '<div class="empty-cta" style="text-align:left;max-width:900px;margin:20px auto;line-height:1.55">'
+      + '<b>La connexion Grist a échoué — aucune donnée de démonstration n’est utilisée.</b><br><br>'
+      + '<b>Erreur :</b> ' + esc(msg) + '<br>'
+      + '<b>Tables détectées :</b> ' + esc(tables) + '<br><br>'
+      + '<span style="color:var(--text-muted)">La prochaine étape est d’identifier l’appel Grist qui échoue. Cette version ne masque plus l’erreur en lançant des données fictives.</span>'
+      + '</div>';
+  }
+  console.error('[Taskflow Organigramme V5] ERREUR SANS DEMO :', err);
+}
+
 function render() {
   // status
   document.getElementById('stDot').className = 'dot' + (S.gOk ? ' ok' : '');
-  document.getElementById('stTxt').textContent = S.gOk ? 'Connecte' : 'Demo';
+  document.getElementById('stTxt').textContent = S.gOk ? 'Connecte' : (S.lastError ? 'Erreur' : 'Connexion...');
   const pl = document.getElementById('pLabel'); if (pl) pl.textContent = periodLabel();
   const pc = document.getElementById('periodCtl'); if (pc) pc.style.visibility = (S.measure !== 'effectif') ? 'visible' : 'hidden';
   const ab = document.getElementById('aclBtn'); if (ab) ab.classList.toggle('on', S.gOk && S.entites.length > 0);
   const wrap = document.getElementById('tree');
   if (!S.entites.length) {
     wrap.innerHTML = '<div class="empty-cta">Aucune entite d\'organisation.<br>'
-      + (S.gOk ? '<button class="btn" id="activate">Activer l\'annuaire (creer la table Entites)</button>' : 'Mode demo sans donnees.') + '</div>';
+      + (S.gOk ? '<button class="btn" id="activate">Activer l\'annuaire (creer la table Entites)</button>' : (S.lastError ? 'Connexion Grist impossible. Consultez le diagnostic ci-dessous.' : 'Chargement des donnees…')) + '</div>';
     const b = document.getElementById('activate'); if (b) b.onclick = activateAnnuaire;
     renderDirectionDirectory();
     return;
@@ -700,6 +722,7 @@ window.ocCreateNewPerson = async () => {
   }
 
   const tables = await grist.docApi.listTables();
+  S.lastTables = tables.slice();
   if (!tables.includes('Utilisateurs')) {
     window.alert('La table Utilisateurs est absente du document. La création est volontairement bloquée pour ne pas recréer un annuaire parallèle.');
     return;
@@ -941,12 +964,11 @@ document.getElementById('aclModal').addEventListener('click', (e) => { if (e.tar
       if (window.grist && grist.docApi && !grist.docApi._tfGuarded) { const raw = grist.docApi.applyUserActions.bind(grist.docApi); grist.docApi._tfGuarded = true; grist.docApi.applyUserActions = async function (a) { if (ro()) { const e = new Error('Document en lecture seule'); e.tfReadOnly = true; throw e; } return await raw(a); }; }
     })();
     await new Promise(r => setTimeout(r, 250));
-    await grist.docApi.listTables(); // test API : seul cet appel peut déclencher le mode demo
-    grist.onRecords(() => { if (S.gOk) loadGrist().catch(e => console.warn('[Taskflow Organigramme] rechargement impossible :', e)); });
+    await grist.docApi.listTables(); // test API uniquement : aucune bascule en Démo
+    grist.onRecords(() => { if (S.gOk) loadGrist().catch(e => renderConnectionError(e)); });
     await loadGrist();
   } catch (e) {
-    console.warn('[Taskflow Organigramme] Grist API indisponible : mode demo.', e);
-    loadDemo();
+    renderConnectionError(e);
   }
 })();
 </script>
