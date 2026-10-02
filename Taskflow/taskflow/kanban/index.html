@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <!-- Taskflow V26 : socle V25 + attribution personnelle et alertes utilisateur -->
+    <!-- Taskflow V27 : V26 + correction identification utilisateur et alertes personnelles -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kanban - TaskFlow V26</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
@@ -1576,11 +1576,14 @@
             try { team = convertGristToRecords(await grist.docApi.fetchTable('Team')); } catch (e) { team = []; }
             try { projects = convertGristToRecords(await grist.docApi.fetchTable('Projects')); } catch (e) { projects = []; }
             try { utilisateurs = convertGristToRecords(await grist.docApi.fetchTable('Utilisateurs')); } catch (e) { utilisateurs = []; }
+            // V27 : le socle Grist doit être marqué prêt AVANT la résolution
+            // de l'identité. En V26, refreshPersonalIdentity() arrivait trop tôt
+            // et quittait immédiatement sur "if (!gristReady) return".
+            gristReady = true;
             try { await refreshPersonalIdentity(); } catch (e) { console.warn('Taskflow identity unavailable:', e); currentUserStatus = 'unavailable'; currentUserEmail = null; currentUser = null; personalAlertTasks = []; personalAlertTeamIds = []; }
             // V3 : l'ordre des projets est conservé dans Projects.ordre.
             projects = sortProjectsByOrder(projects);
             if (gristReady || !projects.length) { /* rien */ }
-            gristReady = true;
             rebuildChildrenCache();
             // V24 : le Kanban utilise volontairement ses 3 statuts français.
             // Les éventuelles anciennes valeurs (review, libellés anglais...) sont
@@ -2853,20 +2856,31 @@
             if (!await ensureTaskflowSessionColumn()) return;
             let createdId = null;
             try {
+                // Important : ne pas fournir _taskflow_session_email dans AddRecord.
+                // La colonne est une formule d'initialisation (trigger formula) et
+                // doit donc calculer user.Email lors de la création de la ligne.
                 const res = await grist.docApi.applyUserActions([[
                     'AddRecord', 'Utilisateurs', null,
-                    { nom: '__TASKFLOW_SESSION__', _taskflow_session_email: null }
+                    { nom: '__TASKFLOW_SESSION__' }
                 ]]);
                 createdId = Array.isArray(res?.retValues) ? Number(res.retValues[0]) : null;
                 taskflowSessionRowId = createdId;
                 if (!createdId) return;
-                const row = await grist.docApi.fetchSelectedRecord(createdId);
+
+                // fetchSelectedRecord() lit la table sélectionnée du widget, pas
+                // nécessairement Utilisateurs. On relit donc explicitement la table.
+                const rawUsers = await grist.docApi.fetchTable('Utilisateurs');
+                const sessionRows = convertGristToRecords(rawUsers);
+                const row = sessionRows.find(r => Number(r.id) === Number(createdId));
                 const email = normalizeEmail(row?._taskflow_session_email);
-                if (!email) return;
+                if (!email) {
+                    console.warn("Taskflow : la formule user.Email n'a pas retourné de valeur.");
+                    return;
+                }
                 currentUserEmail = email;
                 currentUser = utilisateurs.find(u => normalizeEmail(u.email) === email) || null;
                 if (!currentUser) { currentUserStatus = 'unavailable'; return; }
-                const service = String(currentUser.Service ?? currentUser.service ?? '').trim().toLowerCase();
+                const service = String(currentUser.domaine ?? currentUser.Domaine ?? currentUser.Service ?? currentUser.service ?? '').trim().toLowerCase();
                 if (service !== 'direction') { currentUserStatus = 'not-direction'; return; }
                 personalAlertTeamIds = team.filter(m => normalizeEmail(m.email) === email && m.actif !== false).map(m => Number(m.id));
                 currentUserStatus = personalAlertTeamIds.length ? 'ready' : 'unavailable';
