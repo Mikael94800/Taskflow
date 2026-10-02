@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskFlow - Organigramme</title>
+<title>TaskFlow - Organigramme V3</title>
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 :root {
@@ -144,6 +144,19 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .modal .acts button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .modal .acts button.danger { color: var(--over); }
 .modal .acts button:disabled { opacity: .5; cursor: default; }
+
+.direction-directory{margin:10px 12px 8px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);padding:10px 12px}
+.directory-title{font-weight:700;color:var(--text);font-size:.82rem}
+.directory-sub{font-size:.7rem;color:var(--text-muted);margin:3px 0 8px}
+.directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px}
+.dir-row{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--bg)}
+.dir-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--primary-light);color:var(--primary);font-size:.68rem;font-weight:800;flex:0 0 auto}
+.dir-main{min-width:0;display:flex;flex-direction:column;gap:2px;flex:1}
+.dir-main b{font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-main span{font-size:.66rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-state{font-size:.64rem;white-space:nowrap}
+.dir-ok{color:var(--ok);font-weight:700}
+.dir-warn{color:var(--warn);font-weight:700}
 </style>
 </head>
 <body>
@@ -174,6 +187,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <div class="main">
   <div class="tree-wrap" id="tree"><div class="empty-cta">Chargement...</div></div>
   <div class="panel" id="panel"></div>
+  <div id="directionDirectory" class="direction-directory"></div>
 </div>
 
 <div class="legend">
@@ -231,7 +245,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <script>
 // =========================================================================
 //  TaskFlow - Organigramme (lentille pilotage de la repartition)
-//  V2 : Utilisateurs comme annuaire source + Team comme référentiel opérationnel.
+//  V3 : Utilisateurs / Direction visible comme contrôle de correspondance avec Team.
 // =========================================================================
 
 const S = {
@@ -411,6 +425,7 @@ function render() {
     wrap.innerHTML = '<div class="empty-cta">Aucune entite d\'organisation.<br>'
       + (S.gOk ? '<button class="btn" id="activate">Activer l\'annuaire (creer la table Entites)</button>' : 'Mode demo sans donnees.') + '</div>';
     const b = document.getElementById('activate'); if (b) b.onclick = activateAnnuaire;
+    renderDirectionDirectory();
     return;
   }
   let html = '';
@@ -423,9 +438,49 @@ function render() {
   });
   wrap.querySelectorAll('.node[data-key]').forEach(n => n.onclick = () => selectNode(n.dataset.key));
   if (S.selId) renderPanel();
+  renderDirectionDirectory();
 }
 
-// ---- Drill panel ---------------------------------------------------------
+// ---- Annuaire Direction --------------------------------------------------
+function renderDirectionDirectory() {
+  const host = document.getElementById('directionDirectory');
+  if (!host) return;
+  const users = directionUsers().map(u => {
+    const email = utilisateurEmail(u);
+    const p = teamByEmail(email);
+    const ent = p ? S.entites.find(e => Number(e.id) === Number(p.entite || 0)) : null;
+    return {
+      email,
+      nom: p?.nom || nameFromEmail(email),
+      team: !!p,
+      entite: ent?.nom || ''
+    };
+  }).sort((a,b) => a.nom.localeCompare(b.nom,'fr',{sensitivity:'base'}));
+
+  if (!users.length) {
+    host.innerHTML = '';
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="directory-title">Membres de la Direction — source Utilisateurs</div>' +
+    '<div class="directory-sub">Cette liste permet de vérifier la correspondance avec Team. Aucun ajout automatique n’est effectué.</div>' +
+    '<div class="directory-grid">' +
+    users.map(x => {
+      const state = x.team
+        ? (x.entite
+            ? '<span class="dir-ok">Team · ' + esc(x.entite) + '</span>'
+            : '<span class="dir-warn">Team · non rattaché</span>')
+        : '<span class="dir-warn">Absent de Team</span>';
+      return '<div class="dir-row">' +
+        '<div class="dir-avatar">' + esc(initials(x.nom)) + '</div>' +
+        '<div class="dir-main"><b>' + esc(x.nom) + '</b><span>' + esc(x.email) + '</span></div>' +
+        '<div class="dir-state">' + state + '</div>' +
+        '</div>';
+    }).join('') +
+    '</div>';
+}
+ ---------------------------------------------------------
 function selectNode(key) { S.selId = key; renderPanel(); render(); }
 
 function descendantsPeople(eid, acc, seen) {
