@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskFlow - Organigramme V3</title>
+<title>TaskFlow - Organigramme</title>
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 :root {
@@ -144,25 +144,12 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .modal .acts button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .modal .acts button.danger { color: var(--over); }
 .modal .acts button:disabled { opacity: .5; cursor: default; }
-
-.direction-directory{margin:10px 12px 8px;border:1px solid var(--border);border-radius:10px;background:var(--card-bg);padding:10px 12px}
-.directory-title{font-weight:700;color:var(--text);font-size:.82rem}
-.directory-sub{font-size:.7rem;color:var(--text-muted);margin:3px 0 8px}
-.directory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px}
-.dir-row{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--bg)}
-.dir-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--primary-light);color:var(--primary);font-size:.68rem;font-weight:800;flex:0 0 auto}
-.dir-main{min-width:0;display:flex;flex-direction:column;gap:2px;flex:1}
-.dir-main b{font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dir-main span{font-size:.66rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dir-state{font-size:.64rem;white-space:nowrap}
-.dir-ok{color:var(--ok);font-weight:700}
-.dir-warn{color:var(--warn);font-weight:700}
 </style>
 </head>
 <body>
 <div class="topbar">
   <h1>Organigramme</h1>
-  <div class="status"><span class="dot" id="stDot"></span><span id="stTxt">Connexion...</span></div>
+  <div class="status"><span class="dot" id="stDot"></span><span id="stTxt">Demo</span></div>
   <span class="sp"></span>
   <div class="period" id="periodCtl">
     <span class="pchip">Periode courante</span>
@@ -187,7 +174,6 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <div class="main">
   <div class="tree-wrap" id="tree"><div class="empty-cta">Chargement...</div></div>
   <div class="panel" id="panel"></div>
-  <div id="directionDirectory" class="direction-directory"></div>
 </div>
 
 <div class="legend">
@@ -245,7 +231,7 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <script>
 // =========================================================================
 //  TaskFlow - Organigramme (lentille pilotage de la repartition)
-//  V5 : diagnostic de connexion Grist — aucune bascule automatique en mode Démo.
+//  V2 : Utilisateurs comme annuaire source + Team comme référentiel opérationnel.
 // =========================================================================
 
 const S = {
@@ -320,7 +306,7 @@ function computeRealise() {
 // source d'heures active selon la mesure (planifie vs reel)
 function hoursOf(id) { return ((S.measure === 'realise' ? S.realise : S.charge)[id]) || 0; }
 
-// ---- Demo legacy (jamais appelée automatiquement en V5) ----------------
+// ---- Demo ----------------------------------------------------------------
 function loadDemo() {
   S.alone = true;
   S.entites = [
@@ -413,41 +399,18 @@ function renderEntite(e, depth) {
   return html;
 }
 
-function renderConnectionError(err) {
-  const msg = (err && (err.message || err.name)) ? (err.message || err.name) : String(err || 'Erreur inconnue');
-  S.lastError = msg;
-  S.gOk = false;
-  S.alone = false;
-  const st = document.getElementById('stTxt');
-  if (st) st.textContent = 'Erreur';
-  const dot = document.getElementById('stDot');
-  if (dot) dot.className = 'dot';
-  const wrap = document.getElementById('tree');
-  if (wrap) {
-    const tables = (S.lastTables || []).join(', ') || '(liste indisponible)';
-    wrap.innerHTML = '<div class="empty-cta" style="text-align:left;max-width:900px;margin:20px auto;line-height:1.55">'
-      + '<b>La connexion Grist a échoué — aucune donnée de démonstration n’est utilisée.</b><br><br>'
-      + '<b>Erreur :</b> ' + esc(msg) + '<br>'
-      + '<b>Tables détectées :</b> ' + esc(tables) + '<br><br>'
-      + '<span style="color:var(--text-muted)">La prochaine étape est d’identifier l’appel Grist qui échoue. Cette version ne masque plus l’erreur en lançant des données fictives.</span>'
-      + '</div>';
-  }
-  console.error('[Taskflow Organigramme V5] ERREUR SANS DEMO :', err);
-}
-
 function render() {
   // status
   document.getElementById('stDot').className = 'dot' + (S.gOk ? ' ok' : '');
-  document.getElementById('stTxt').textContent = S.gOk ? 'Connecte' : (S.lastError ? 'Erreur' : 'Connexion...');
+  document.getElementById('stTxt').textContent = S.gOk ? 'Connecte' : 'Demo';
   const pl = document.getElementById('pLabel'); if (pl) pl.textContent = periodLabel();
   const pc = document.getElementById('periodCtl'); if (pc) pc.style.visibility = (S.measure !== 'effectif') ? 'visible' : 'hidden';
   const ab = document.getElementById('aclBtn'); if (ab) ab.classList.toggle('on', S.gOk && S.entites.length > 0);
   const wrap = document.getElementById('tree');
   if (!S.entites.length) {
     wrap.innerHTML = '<div class="empty-cta">Aucune entite d\'organisation.<br>'
-      + (S.gOk ? '<button class="btn" id="activate">Activer l\'annuaire (creer la table Entites)</button>' : (S.lastError ? 'Connexion Grist impossible. Consultez le diagnostic ci-dessous.' : 'Chargement des donnees…')) + '</div>';
+      + (S.gOk ? '<button class="btn" id="activate">Activer l\'annuaire (creer la table Entites)</button>' : 'Mode demo sans donnees.') + '</div>';
     const b = document.getElementById('activate'); if (b) b.onclick = activateAnnuaire;
-    renderDirectionDirectory();
     return;
   }
   let html = '';
@@ -460,49 +423,9 @@ function render() {
   });
   wrap.querySelectorAll('.node[data-key]').forEach(n => n.onclick = () => selectNode(n.dataset.key));
   if (S.selId) renderPanel();
-  renderDirectionDirectory();
 }
 
-// ---- Annuaire Direction --------------------------------------------------
-function renderDirectionDirectory() {
-  const host = document.getElementById('directionDirectory');
-  if (!host) return;
-  const users = directionUsers().map(u => {
-    const email = utilisateurEmail(u);
-    const p = teamByEmail(email);
-    const ent = p ? S.entites.find(e => Number(e.id) === Number(p.entite || 0)) : null;
-    return {
-      email,
-      nom: p?.nom || nameFromEmail(email),
-      team: !!p,
-      entite: ent?.nom || ''
-    };
-  }).sort((a,b) => a.nom.localeCompare(b.nom,'fr',{sensitivity:'base'}));
-
-  if (!users.length) {
-    host.innerHTML = '';
-    return;
-  }
-
-  host.innerHTML =
-    '<div class="directory-title">Membres de la Direction — source Utilisateurs</div>' +
-    '<div class="directory-sub">Cette liste permet de vérifier la correspondance avec Team. Aucun ajout automatique n’est effectué.</div>' +
-    '<div class="directory-grid">' +
-    users.map(x => {
-      const state = x.team
-        ? (x.entite
-            ? '<span class="dir-ok">Team · ' + esc(x.entite) + '</span>'
-            : '<span class="dir-warn">Team · non rattaché</span>')
-        : '<span class="dir-warn">Absent de Team</span>';
-      return '<div class="dir-row">' +
-        '<div class="dir-avatar">' + esc(initials(x.nom)) + '</div>' +
-        '<div class="dir-main"><b>' + esc(x.nom) + '</b><span>' + esc(x.email) + '</span></div>' +
-        '<div class="dir-state">' + state + '</div>' +
-        '</div>';
-    }).join('') +
-    '</div>';
-}
- ---------------------------------------------------------
+// ---- Drill panel ---------------------------------------------------------
 function selectNode(key) { S.selId = key; renderPanel(); render(); }
 
 function descendantsPeople(eid, acc, seen) {
@@ -722,7 +645,6 @@ window.ocCreateNewPerson = async () => {
   }
 
   const tables = await grist.docApi.listTables();
-  S.lastTables = tables.slice();
   if (!tables.includes('Utilisateurs')) {
     window.alert('La table Utilisateurs est absente du document. La création est volontairement bloquée pour ne pas recréer un annuaire parallèle.');
     return;
@@ -756,41 +678,27 @@ async function getMyUserId() {
 
 async function loadGrist() {
   const tables = await grist.docApi.listTables();
-  // IMPORTANT : une table absente ou non lisible ne doit plus faire basculer
-  // tout l'organigramme en mode DEMO. On charge chaque source séparément.
-  const fetch = async (t) => {
-    if (!tables.includes(t)) {
-      console.info('[Taskflow Organigramme] table absente : ' + t);
-      return [];
-    }
-    try {
-      return colObjToRows(await grist.docApi.fetchTable(t));
-    } catch (e) {
-      console.warn('[Taskflow Organigramme] lecture impossible pour ' + t + ' :', e && e.message ? e.message : e);
-      return [];
-    }
-  };
-
-  // Connexion Grist validée dès que listTables() fonctionne.
-  S.gOk = true;
-  S.alone = false;
-
-  const team = await fetch('Team');
-  const utilisateurs = await fetch('Utilisateurs');
-  const tasks = await fetch('Tasks');
-  S.projects = await fetch('Projects');
+  // Team + Tasks + Projects (peuvent exister) ; Entites = annuaire (opt-in)
+  const fetch = async (t) => tables.includes(t) ? colObjToRows(await grist.docApi.fetchTable(t)) : null;
+  const team = await fetch('Team') || [];
+  const utilisateurs = await fetch('Utilisateurs') || [];
+  const tasks = await fetch('Tasks') || [];
+  S.projects = await fetch('Projects') || [];
   const entites = await fetch('Entites');
 
   S.utilisateurs = utilisateurs;
   S.team = team.map(t => ({ id: t.id, nom: t.nom, email: t.email || '', role: t.role || '', entite: t.entite || null, responsable: t.responsable || null, capaciteHebdo: Number(t.capaciteHebdo) || 35 }));
   S.tasks = tasks;
-  S.entites = entites.map(e => ({ id: e.id, nom: e.nom, parent: e.parent || null, niveau: e.niveau || 'unite', chef: e.chef || null }));
+  S.entites = entites ? entites.map(e => ({ id: e.id, nom: e.nom, parent: e.parent || null, niveau: e.niveau || 'unite', chef: e.chef || null })) : [];
 
-  const entries = await fetch('TimeEntries');
-  S.entries = entries.map(e => ({ membre: e.membre, date: e.date, heures: e.heures }));
+  S.entries = (await fetch('TimeEntries') || []).map(e => ({ membre: e.membre, date: e.date, heures: e.heures }));
   computeCharge();   // planifie (Tasks.charges) sur la periode
   computeRealise();  // reel (TimeEntries) sur la periode
-  S.meUserId = await getMyUserId();
+  // V3 : identification utilisateur mise en pause pendant le diagnostic.
+  S.meUserId = null;
+  S.gOk = true;
+  const st = document.getElementById('stTxt');
+  if (st) st.textContent = 'Connecté';
   render();
 }
 
@@ -964,11 +872,20 @@ document.getElementById('aclModal').addEventListener('click', (e) => { if (e.tar
       if (window.grist && grist.docApi && !grist.docApi._tfGuarded) { const raw = grist.docApi.applyUserActions.bind(grist.docApi); grist.docApi._tfGuarded = true; grist.docApi.applyUserActions = async function (a) { if (ro()) { const e = new Error('Document en lecture seule'); e.tfReadOnly = true; throw e; } return await raw(a); }; }
     })();
     await new Promise(r => setTimeout(r, 250));
-    await grist.docApi.listTables(); // test API uniquement : aucune bascule en Démo
-    grist.onRecords(() => { if (S.gOk) loadGrist().catch(e => renderConnectionError(e)); });
+    await grist.docApi.listTables(); // test API
+    grist.onRecords(() => { if (S.gOk) loadGrist().catch(() => {}); });
     await loadGrist();
   } catch (e) {
-    renderConnectionError(e);
+    // V3 : ne plus basculer silencieusement en mode Démo dans Grist.
+    S.gOk = false;
+    const msg = (e && e.message) ? e.message : String(e);
+    console.error('TaskFlow Organigramme - chargement Grist impossible :', e);
+    const st = document.getElementById('stTxt');
+    if (st) st.textContent = 'Erreur Grist';
+    const dot = document.getElementById('stDot');
+    if (dot) dot.style.background = 'var(--over)';
+    const tree = document.getElementById('tree');
+    if (tree) tree.innerHTML = '<div class="empty-cta" style="max-width:760px;margin:30px auto;text-align:left"><b>Les données Grist n'ont pas pu être chargées.</b><br><br><span style="color:var(--text-muted)">Erreur technique :</span><br><code style="white-space:pre-wrap">' + esc(msg) + '</code><br><br><span style="color:var(--text-muted)">Le widget ne passe plus automatiquement en mode Démo.</span></div>';
   }
 })();
 </script>
