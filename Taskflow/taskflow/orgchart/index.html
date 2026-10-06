@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaskFlow - Organigramme V4 diagnostic</title>
+<title>TaskFlow - Organigramme</title>
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 :root {
@@ -101,27 +101,6 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .eact button.del { color: var(--over); border-color: transparent; margin-left: auto; }
 .eact button.del:hover { background: var(--over); color: #fff; }
 .prow { cursor: pointer; }
-
-/* Modale d'ajout/rattachement d'une personne — V2 : Utilisateurs -> Team */
-.person-modal { width: min(680px, 94vw); }
-.person-search { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 11px; font-size: .82rem; font-family: inherit; margin-bottom: 10px; outline: none; }
-.person-search:focus { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 14%, transparent); }
-.person-list { max-height: 48vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
-.person-choice { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit; }
-.person-choice:hover { border-color: var(--primary); background: var(--primary-light); }
-.person-choice .av { flex: 0 0 28px; }
-.person-choice .pc-main { min-width: 0; flex: 1; }
-.person-choice .pc-name { font-size: .82rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.person-choice .pc-meta { font-size: .68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.person-choice .pc-state { font-size: .64rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
-.person-choice .pc-state.same { color: var(--ok); }
-.person-empty { padding: 18px 10px; text-align: center; color: var(--text-muted); font-size: .78rem; }
-.person-create { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-.person-create p { font-size: .72rem; color: var(--text-muted); margin-bottom: 7px; line-height: 1.4; }
-.new-person-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 7px; }
-.new-person-grid input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 7px 9px; font-size: .76rem; font-family: inherit; outline: none; }
-.new-person-grid input:focus { border-color: var(--primary); }
-@media (max-width: 620px) { .new-person-grid { grid-template-columns: 1fr; } }
 /* Bouton + modale Droits (ACL) */
 .acl-btn { display: none; align-items: center; gap: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); border-radius: 7px; padding: 5px 10px; font-size: .76rem; font-weight: 600; cursor: pointer; font-family: inherit; }
 .acl-btn:hover { color: var(--primary); border-color: var(--primary); }
@@ -183,28 +162,6 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
   <span class="li" style="margin-left:auto">Charge agregee par unite, periode courante — detail temporel par personne dans le widget Plan</span>
 </div>
 
-<div class="modal-ov" id="personModal" onclick="if(event.target===this) ocClosePersonModal()">
-  <div class="modal person-modal">
-    <h2>Ajouter une personne</h2>
-    <div class="sub" id="personModalSub">Les personnes de la <b>Direction</b> sont recherchées dans la table <b>Utilisateurs</b>. Si elles existent déjà dans Team, aucune nouvelle ligne n'est créée.</div>
-    <input id="personSearch" class="person-search" type="search" placeholder="Rechercher par nom ou e-mail…" autocomplete="off">
-    <div id="personList" class="person-list"></div>
-    <div class="person-create">
-      <p><b>Nouvelle personne :</b> crée d'abord son entrée dans <b>Utilisateurs</b> (Service = Direction), puis son profil opérationnel dans <b>Team</b>.</p>
-      <div class="new-person-grid">
-        <input id="newPersonName" type="text" placeholder="Nom affiché dans Taskflow">
-        <input id="newPersonEmail" type="email" placeholder="Adresse e-mail Grist">
-        <input id="newPersonRole" type="text" placeholder="Rôle (facultatif)">
-        <input id="newPersonCapacity" type="number" min="0" step="1" value="35" placeholder="Capacité hebdomadaire">
-      </div>
-      <button class="btn" type="button" onclick="ocCreateNewPerson()">+ Créer la personne</button>
-    </div>
-    <div class="acts" style="margin-top:12px">
-      <button type="button" onclick="ocClosePersonModal()">Annuler</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-ov" id="aclModal">
   <div class="modal">
     <h2>Configurer les droits (annuaire)</h2>
@@ -231,12 +188,12 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 <script>
 // =========================================================================
 //  TaskFlow - Organigramme (lentille pilotage de la repartition)
-//  V2 : Utilisateurs comme annuaire source + Team comme référentiel opérationnel.
+//  v0 : arbre Entites/Team + roll-up de charge + drill. Mode demo + Grist.
 // =========================================================================
 
 const S = {
   alone: false, gOk: false,
-  entites: [], team: [], utilisateurs: [], tasks: [], projects: [],
+  entites: [], team: [], tasks: [], projects: [],
   charge: {},            // teamId -> heures planifiees (sur la periode consideree)
   realise: {},           // teamId -> heures REELLES saisies (TimeEntries) sur la periode
   entries: [],           // TimeEntries (si la CRA est active)
@@ -467,204 +424,82 @@ window.ocAddSous = async (pid) => {
   const r = await grist.docApi.applyUserActions([['AddRecord', 'Entites', null, { nom: 'Nouvelle entite', niveau: 'equipe', parent: pid }]]).catch(() => null);
   if (r) S.selId = 'e:' + r.retValues[0]; await loadGrist();
 };
-let personModalEntityId = null;
-
-function normEmail(v) {
-  return String(v || '').trim().toLowerCase();
-}
-function utilisateurEmail(u) {
-  return u?.Email ?? u?.email ?? u?.login ?? u?.Login ?? u?.mail ?? u?.Mail ?? '';
-}
-function utilisateurService(u) {
-  return String(u?.Service ?? u?.service ?? '').trim();
-}
-function teamByEmail(email) {
-  const e = normEmail(email);
-  return e ? (S.team.find(p => normEmail(p.email) === e) || null) : null;
-}
-function directionUsers() {
-  return (S.utilisateurs || []).filter(u => normEmail(utilisateurEmail(u)) && utilisateurService(u).toLowerCase() === 'direction');
-}
-function nameFromEmail(email) {
-  const local = String(email || '').split('@')[0] || '';
-  const bits = local.replace(/[._-]+/g, ' ').split(/\s+/).filter(Boolean);
-  return bits.map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join(' ') || 'Nouvelle personne';
-}
-function escAttr(s) { return esc(s).replace(/'/g, '&#39;'); }
-
-function ocClosePersonModal() {
-  const m = document.getElementById('personModal');
-  if (m) m.classList.remove('open');
-  personModalEntityId = null;
-}
-
-function ocRenderPersonChoices(query = '') {
-  const list = document.getElementById('personList');
-  if (!list) return;
-  const q = String(query || '').trim().toLowerCase();
-  const eid = personModalEntityId;
-  const users = directionUsers().map(u => {
-    const email = utilisateurEmail(u);
-    const team = teamByEmail(email);
-    const nom = team?.nom || nameFromEmail(email);
-    return { user: u, email, team, nom };
-  }).filter(x => !q || x.email.toLowerCase().includes(q) || x.nom.toLowerCase().includes(q));
-
-  users.sort((a, b) => a.nom.localeCompare(b.nom, 'fr', { sensitivity: 'base' }));
-  if (!users.length) {
-    list.innerHTML = '<div class="person-empty">Aucune personne de la Direction trouvée dans Utilisateurs.</div>';
-    return;
-  }
-
-  list.innerHTML = users.map(x => {
-    const p = x.team;
-    const same = p && Number(p.entite || 0) === Number(eid || 0);
-    const currentEnt = p ? S.entites.find(e => e.id === p.entite) : null;
-    const state = !p
-      ? '<span class="pc-state">Créer le profil Team</span>'
-      : same
-        ? '<span class="pc-state same">Déjà dans cette entité</span>'
-        : '<span class="pc-state">' + (currentEnt ? 'Changer d’entité' : 'Rattacher à l’entité') + '</span>';
-    return '<button type="button" class="person-choice" onclick="ocSelectUtilisateur(\'' + escAttr(x.email) + '\')">'
-      + '<span class="av">' + esc(initials(x.nom)) + '</span>'
-      + '<span class="pc-main"><span class="pc-name">' + esc(x.nom) + '</span>'
-      + '<span class="pc-meta">' + esc(x.email) + (currentEnt ? ' · ' + esc(currentEnt.nom) : ' · Utilisateurs / Direction') + '</span></span>'
-      + state + '</button>';
-  }).join('');
-}
-
-window.ocAddPers = (eid) => {
-  personModalEntityId = Number(eid);
-  const ent = S.entites.find(e => e.id === personModalEntityId);
-  const sub = document.getElementById('personModalSub');
-  if (sub) sub.innerHTML = 'Pour <b>' + esc(ent ? ent.nom : 'cette entité') + '</b>, les personnes sont recherchées dans <b>Utilisateurs</b> avec <b>Service = Direction</b>.';
-  const search = document.getElementById('personSearch');
-  if (search) search.value = '';
-  const name = document.getElementById('newPersonName');
-  const email = document.getElementById('newPersonEmail');
-  const role = document.getElementById('newPersonRole');
-  const cap = document.getElementById('newPersonCapacity');
-  if (name) name.value = '';
-  if (email) email.value = '';
-  if (role) role.value = '';
-  if (cap) cap.value = '35';
-  ocRenderPersonChoices('');
-  const modal = document.getElementById('personModal');
-  if (modal) modal.classList.add('open');
-  setTimeout(() => { if (search) search.focus(); }, 0);
+window.ocAddPers = async (eid) => {
+  if (S.alone) { const nid = Math.max(0, ...S.team.map(p => p.id)) + 1; S.team.push({ id: nid, nom: 'Nouvelle personne', entite: eid, capaciteHebdo: 35 }); S.selId = 'p:' + nid; render(); return; }
+  const r = await grist.docApi.applyUserActions([['AddRecord', 'Team', null, { nom: 'Nouvelle personne', entite: eid, capaciteHebdo: 35 }]]).catch(() => null);
+  if (r) S.selId = 'p:' + r.retValues[0]; await loadGrist();
 };
+window.ocDelE = async (id) => { S.entites = S.entites.filter(e => e.id !== id); S.selId = null; render(); await applyAct([['RemoveRecord', 'Entites', id]]); };
+window.ocDelP = async (id) => { S.team = S.team.filter(p => p.id !== id); S.selId = null; computeCharge(); render(); await applyAct([['RemoveRecord', 'Team', id]]); };
 
-window.ocSelectUtilisateur = async (email) => {
-  const eid = Number(personModalEntityId);
-  const e = normEmail(email);
-  if (!eid || !e) return;
-  const u = directionUsers().find(x => normEmail(utilisateurEmail(x)) === e);
-  if (!u) return;
-  let p = teamByEmail(e);
-
-  if (!p) {
-    const nom = nameFromEmail(e);
-    const ok = window.confirm('« ' + nom + ' » existe dans Utilisateurs mais pas encore dans Team.\n\nCréer son profil Taskflow dans Team et le rattacher à cette entité ?');
-    if (!ok) return;
-    if (S.alone) {
-      const nid = Math.max(0, ...S.team.map(x => x.id)) + 1;
-      S.team.push({ id: nid, nom, email: e, role: '', entite: eid, responsable: null, capaciteHebdo: 35 });
-      S.selId = 'p:' + nid; ocClosePersonModal(); computeCharge(); render(); return;
+function renderPanel() {
+  const panel = document.getElementById('panel');
+  if (!S.selId) { panel.classList.remove('open'); return; }
+  panel.classList.add('open');
+  const [kind, idStr] = S.selId.split(':'); const id = Number(idStr);
+  let html = '';
+  if (kind === 'e') {
+    const e = S.entites.find(x => x.id === id); if (!e) { panel.classList.remove('open'); return; }
+    const people = descendantsPeople(id);
+    let ch = 0, cap = 0; for (const p of people) { ch += hoursOf(p.id); cap += capPersonne(p); }
+    const ratio = cap > 0 ? ch / cap : 0;
+    html += '<div class="edit">'
+      + '<input class="etitle" value="' + esc(e.nom) + '" onchange="ocSaveE(' + id + ',\'nom\',this.value)">'
+      + erow('Niveau', '<select onchange="ocSaveE(' + id + ',\'niveau\',this.value)">' + nivOpts(e.niveau) + '</select>')
+      + erow('Parent', '<select onchange="ocSaveE(' + id + ',\'parent\',+this.value)">' + entOpts(e.parent, id) + '</select>')
+      + erow('Chef', '<select onchange="ocSaveE(' + id + ',\'chef\',+this.value)">' + teamOpts(e.chef, null) + '</select>')
+      + '<div class="eact"><button onclick="ocAddSous(' + id + ')">+ Sous-entite</button><button onclick="ocAddPers(' + id + ')">+ Personne</button><button class="del" onclick="ocDelE(' + id + ')">Supprimer</button></div>'
+      + '</div>';
+    html += '<div class="kpi-row">'
+      + '<div class="kpi"><div class="v">' + people.length + '</div><div class="l">' + (people.length > 1 ? 'Personnes' : 'Personne') + '</div></div>'
+      + '<div class="kpi"><div class="v">' + Math.round(ch) + ' h</div><div class="l">Charge</div></div>'
+      + '<div class="kpi"><div class="v" style="color:' + heat(ratio) + '">' + Math.round(ratio * 100) + '%</div><div class="l">vs capacite</div></div>'
+      + '</div><div class="plist">';
+    for (const p of people.slice().sort((a, b) => hoursOf(b.id) - hoursOf(a.id))) {
+      const pc = hoursOf(p.id), pcap = capPersonne(p), pr = pcap > 0 ? pc / pcap : 0;
+      html += '<div class="prow" onclick="selectNode(\'p:' + p.id + '\')"><div class="av">' + esc(initials(p.nom)) + '</div>'
+        + '<span class="pn">' + esc(p.nom) + '</span>'
+        + '<span class="pc" style="color:' + heat(pr) + '">' + Math.round(pc) + '/' + Math.round(pcap) + ' h</span></div>';
     }
-    const r = await grist.docApi.applyUserActions([['AddRecord', 'Team', null, {
-      nom, email: e, role: '', entite: eid, capaciteHebdo: 35
-    }]]).catch(err => { console.warn('orgchart create Team from Utilisateurs:', err?.message); return null; });
-    if (!r) return;
-    await loadGrist();
-    p = teamByEmail(e);
-    if (p) S.selId = 'p:' + p.id;
-    ocClosePersonModal();
-    return;
+    html += '</div>';
+  } else {
+    const p = S.team.find(x => x.id === id); if (!p) { panel.classList.remove('open'); return; }
+    const pc = hoursOf(id), pcap = capPersonne(p), pr = pcap > 0 ? pc / pcap : 0;
+    html += '<div class="edit">'
+      + '<input class="etitle" value="' + esc(p.nom) + '" onchange="ocSaveP(' + id + ',\'nom\',this.value)">'
+      + erow('Email', '<input value="' + esc(p.email || '') + '" placeholder="login Grist (pivot droits)" onchange="ocSaveP(' + id + ',\'email\',this.value)">')
+      + erow('Role', '<input value="' + esc(p.role || '') + '" onchange="ocSaveP(' + id + ',\'role\',this.value)">')
+      + erow('Cap./sem', '<input type="number" value="' + (p.capaciteHebdo || '') + '" onchange="ocSaveP(' + id + ',\'capaciteHebdo\',+this.value)"> h')
+      + erow('Entite', '<select onchange="ocSaveP(' + id + ',\'entite\',+this.value)">' + entOpts(p.entite, null) + '</select>')
+      + erow('Responsable', '<select onchange="ocSaveP(' + id + ',\'responsable\',+this.value)">' + teamOpts(p.responsable, id) + '</select>')
+      + '<div class="eact"><button class="del" onclick="ocDelP(' + id + ')">Supprimer</button></div>'
+      + '</div>';
+    html += '<div class="kpi-row">'
+      + '<div class="kpi"><div class="v">' + Math.round(pc) + ' h</div><div class="l">Charge</div></div>'
+      + '<div class="kpi"><div class="v">' + Math.round(pcap) + ' h</div><div class="l">Capacite</div></div>'
+      + '<div class="kpi"><div class="v" style="color:' + heat(pr) + '">' + Math.round(pr * 100) + '%</div><div class="l">Taux</div></div>'
+      + '</div>';
   }
+  panel.innerHTML = html;
+}
 
-  if (Number(p.entite || 0) === eid) {
-    S.selId = 'p:' + p.id;
-    ocClosePersonModal();
-    render();
-    return;
-  }
+// ---- Mesure --------------------------------------------------------------
+document.getElementById('measureSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#measureSeg button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); S.measure = b.dataset.m; render();
+});
+function recompute() { computeCharge(); computeRealise(); render(); }
+document.getElementById('granSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#granSeg button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); S.gran = b.dataset.g; recompute();
+});
 
-  const oldEnt = S.entites.find(x => x.id === p.entite);
-  const newEnt = S.entites.find(x => x.id === eid);
-  const message = oldEnt
-    ? '« ' + p.nom + ' » est actuellement rattaché(e) à « ' + oldEnt.nom + ' ».\n\nLe rattacher à « ' + (newEnt ? newEnt.nom : 'cette entité') + ' » le déplacera de son entité actuelle.\n\nContinuer ?'
-    : 'Rattacher « ' + p.nom + ' » à « ' + (newEnt ? newEnt.nom : 'cette entité') + ' » ?';
-  if (!window.confirm(message)) return;
-
-  if (S.alone) {
-    p.entite = eid; S.selId = 'p:' + p.id; ocClosePersonModal(); computeCharge(); render(); return;
-  }
-  const ok = await grist.docApi.applyUserActions([['UpdateRecord', 'Team', p.id, { entite: eid }]]).catch(err => {
-    console.warn('orgchart attach person:', err?.message); return null;
-  });
-  if (!ok) return;
-  S.selId = 'p:' + p.id;
-  ocClosePersonModal();
-  await loadGrist();
-};
-
-window.ocCreateNewPerson = async () => {
-  const eid = Number(personModalEntityId);
-  const nom = String(document.getElementById('newPersonName')?.value || '').trim();
-  const email = normEmail(document.getElementById('newPersonEmail')?.value);
-  const role = String(document.getElementById('newPersonRole')?.value || '').trim();
-  const capaciteHebdo = Math.max(0, Number(document.getElementById('newPersonCapacity')?.value || 35));
-  if (!eid) return;
-  if (!nom || !email) {
-    window.alert('Le nom et l’adresse e-mail sont nécessaires.');
-    return;
-  }
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
-    window.alert('L’adresse e-mail ne semble pas valide.');
-    return;
-  }
-
-  const existingUser = (S.utilisateurs || []).find(u => normEmail(utilisateurEmail(u)) === email);
-  const existingTeam = teamByEmail(email);
-  if (existingTeam) {
-    window.alert('Cette adresse existe déjà dans Team (« ' + (existingTeam.nom || nom) + ' »). Utilisez la liste ci-dessus pour la rattacher à l’entité.');
-    return;
-  }
-  if (existingUser && utilisateurService(existingUser).toLowerCase() !== 'direction') {
-    window.alert('Cette adresse existe déjà dans Utilisateurs mais n’est pas rattachée au Service « Direction ». Aucune modification automatique n’est effectuée.');
-    return;
-  }
-
-  if (!window.confirm('Créer « ' + nom + ' » ?\n\n1. entrée dans Utilisateurs (Service = Direction)\n2. profil dans Team\n3. rattachement à l’entité sélectionnée\n\nContinuer ?')) return;
-
-  if (S.alone) {
-    const nid = Math.max(0, ...S.team.map(x => x.id)) + 1;
-    S.team.push({ id: nid, nom, email, role, entite: eid, responsable: null, capaciteHebdo });
-    S.utilisateurs.push({ id: Math.max(0, ...S.utilisateurs.map(x => x.id || 0)) + 1, Email: email, Service: 'Direction', Domaine: '' });
-    S.selId = 'p:' + nid; ocClosePersonModal(); render(); return;
-  }
-
-  const tables = await grist.docApi.listTables();
-  if (!tables.includes('Utilisateurs')) {
-    window.alert('La table Utilisateurs est absente du document. La création est volontairement bloquée pour ne pas recréer un annuaire parallèle.');
-    return;
-  }
-
-  const actions = [];
-  if (!existingUser) {
-    actions.push(['AddRecord', 'Utilisateurs', null, { Email: email, Service: 'Direction', Domaine: '' }]);
-  }
-  actions.push(['AddRecord', 'Team', null, { nom, email, role, entite: eid, capaciteHebdo }]);
-
-  const r = await grist.docApi.applyUserActions(actions).catch(err => {
-    console.warn('orgchart create person:', err?.message); return null;
-  });
-  if (!r) return;
-  await loadGrist();
-  const p = teamByEmail(email);
-  if (p) S.selId = 'p:' + p.id;
-  ocClosePersonModal();
-  render();
+// =========================================================================
+//  Grist
+// =========================================================================
+const colObjToRows = (data) => {
+  if (!data || !data.id) return [];
+  return data.id.map((_, i) => { const o = {}; for (const k in data) o[k] = data[k][i]; return o; });
 };
 
 async function getMyUserId() {
@@ -681,12 +516,10 @@ async function loadGrist() {
   // Team + Tasks + Projects (peuvent exister) ; Entites = annuaire (opt-in)
   const fetch = async (t) => tables.includes(t) ? colObjToRows(await grist.docApi.fetchTable(t)) : null;
   const team = await fetch('Team') || [];
-  const utilisateurs = await fetch('Utilisateurs') || [];
   const tasks = await fetch('Tasks') || [];
   S.projects = await fetch('Projects') || [];
   const entites = await fetch('Entites');
 
-  S.utilisateurs = utilisateurs;
   S.team = team.map(t => ({ id: t.id, nom: t.nom, email: t.email || '', role: t.role || '', entite: t.entite || null, responsable: t.responsable || null, capaciteHebdo: Number(t.capaciteHebdo) || 35 }));
   S.tasks = tasks;
   S.entites = entites ? entites.map(e => ({ id: e.id, nom: e.nom, parent: e.parent || null, niveau: e.niveau || 'unite', chef: e.chef || null })) : [];
@@ -873,22 +706,7 @@ document.getElementById('aclModal').addEventListener('click', (e) => { if (e.tar
     grist.onRecords(() => { if (S.gOk) loadGrist().catch(() => {}); });
     await loadGrist();
   } catch (e) {
-    console.error('TaskFlow Organigramme - erreur de chargement Grist:', e);
-    S.gOk = false;
-    const msg = e && e.message ? e.message : String(e);
-    const wrap = document.getElementById('tree');
-    if (wrap) {
-      wrap.innerHTML =
-        '<div class="empty-cta" style="color:var(--over);padding:24px;text-align:left">' +
-        '<strong>Erreur de chargement Grist</strong><br><br>' +
-        '<span>' + esc(msg) + '</span><br><br>' +
-        '<small>Le mode Démo est désactivé dans cette version.</small>' +
-        '</div>';
-    }
-    const st = document.getElementById('stTxt');
-    if (st) st.textContent = 'Erreur';
-    const dot = document.getElementById('stDot');
-    if (dot) dot.className = 'dot';
+    loadDemo();
   }
 })();
 </script>
