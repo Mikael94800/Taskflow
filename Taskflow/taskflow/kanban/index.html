@@ -563,9 +563,11 @@
         .tf-alert-menu-head small { display:block; margin-top:2px; font-size:.68rem; color:var(--text-muted); }
         .tf-alert-project { padding:7px 8px 4px; font-size:.67rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:.03em; }
         .tf-alert-task {
-            width:100%; display:block; box-sizing:border-box; padding:8px; margin:2px 0; border:1px solid transparent; border-radius:8px;
-            background:transparent; color:var(--text); text-align:left; cursor:pointer; font:inherit;
+            width:100%; display:flex; align-items:stretch; box-sizing:border-box; padding:8px; margin:2px 0; border:1px solid transparent; border-radius:8px;
+            background:transparent; color:var(--text); text-align:left; cursor:pointer; font:inherit; overflow:hidden;
         }
+        .tf-alert-project-bar { flex:0 0 6px; width:6px; min-height:38px; margin:-8px 9px -8px -8px; border-radius:7px 0 0 7px; background:#64748b; }
+        .tf-alert-task-content { min-width:0; flex:1; }
         .tf-alert-task:hover { background:var(--surface-2); border-color:var(--border); }
         .tf-alert-task-title { display:flex; align-items:flex-start; gap:7px; font-size:.76rem; font-weight:700; line-height:1.25; }
         .tf-alert-task-title .tf-alert-priority { flex:0 0 auto; min-width:17px; height:17px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; background:var(--surface-2); color:var(--text-muted); font-size:.61rem; }
@@ -1852,9 +1854,13 @@ let currentUser = {
                         const due = task.dateEcheance ? gristToDate(task.dateEcheance) : null;
                         const dueText = due ? formatDateShort(due) : '';
                         const overdue = due && due < new Date() && !TF.isTerminal(statusCfg, getEffectiveStatusValue(task));
+                        const projectColor = getProjectColor(Number(task.projet));
                         return `<button type="button" class="tf-alert-task" role="menuitem" onclick="openPersonalAlertTask(${Number(task.id)})">
+                            <span class="tf-alert-project-bar" style="background:${escapeHtml(projectColor)}" aria-hidden="true"></span>
+                            <span class="tf-alert-task-content">
                             <span class="tf-alert-task-title"><span class="tf-alert-priority">P${priority}</span><span>${escapeHtml(task.titre || 'Sans titre')}</span></span>
                             <span class="tf-alert-task-meta"><span class="tf-alert-status">${statusLabel}</span>${dueText ? `<span class="tf-alert-due${overdue ? ' overdue' : ''}">Échéance : ${escapeHtml(dueText)}${overdue ? ' · en retard' : ''}</span>` : ''}</span>
+                            </span>
                         </button>`;
                     }).join('');
                     return `<div class="tf-alert-project">${projectLabel} · ${arr.length}</div>${tasksHtml}`;
