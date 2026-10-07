@@ -548,6 +548,32 @@
         @media(max-width:1100px){ .tf-user-badge { max-width:210px; } }
 
         /* V28 — alertes personnelles : visuelles uniquement, sans nouvelle table */
+        /* V30-Bridge : menu Mes tâches, indépendant du mécanisme d'identité V29-Bridge */
+        .tf-my-alerts-wrap { position:relative; display:inline-flex; align-items:center; }
+        .tf-my-alerts { cursor:pointer; user-select:none; }
+        .tf-my-alerts:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+        .tf-my-alerts-menu {
+            position:absolute; top:calc(100% + 8px); right:0; width:min(390px, calc(100vw - 24px)); max-height:min(520px, 70vh);
+            overflow:auto; z-index:1200; display:none; padding:8px; border:1px solid var(--border); border-radius:12px;
+            background:var(--card-bg); box-shadow:0 12px 32px rgba(15,23,42,.16);
+        }
+        .tf-my-alerts-menu.open { display:block; }
+        .tf-alert-menu-head { padding:6px 8px 9px; border-bottom:1px solid var(--border); margin-bottom:6px; }
+        .tf-alert-menu-head strong { display:block; font-size:.82rem; color:var(--text); }
+        .tf-alert-menu-head small { display:block; margin-top:2px; font-size:.68rem; color:var(--text-muted); }
+        .tf-alert-project { padding:7px 8px 4px; font-size:.67rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:.03em; }
+        .tf-alert-task {
+            width:100%; display:block; box-sizing:border-box; padding:8px; margin:2px 0; border:1px solid transparent; border-radius:8px;
+            background:transparent; color:var(--text); text-align:left; cursor:pointer; font:inherit;
+        }
+        .tf-alert-task:hover { background:var(--surface-2); border-color:var(--border); }
+        .tf-alert-task-title { display:flex; align-items:flex-start; gap:7px; font-size:.76rem; font-weight:700; line-height:1.25; }
+        .tf-alert-task-title .tf-alert-priority { flex:0 0 auto; min-width:17px; height:17px; display:inline-flex; align-items:center; justify-content:center; border-radius:5px; background:var(--surface-2); color:var(--text-muted); font-size:.61rem; }
+        .tf-alert-task-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; padding-left:24px; font-size:.64rem; color:var(--text-muted); }
+        .tf-alert-status { font-weight:700; }
+        .tf-alert-due.overdue { color:#dc2626; font-weight:700; }
+        .tf-alert-empty { padding:16px 8px; text-align:center; font-size:.74rem; color:var(--text-muted); }
+        .tf-alert-menu-note { padding:7px 8px 2px; font-size:.62rem; color:var(--text-muted); }
         .tf-my-alerts {
             display:inline-flex; align-items:center; gap:6px; min-height:30px;
             padding:0 10px; border:1px solid var(--border); border-radius:8px;
@@ -800,9 +826,12 @@
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
-            <div class="tf-my-alerts" id="tfMyAlerts" title="V27 — alertes personnelles">
-                🔔 <span>Mes tâches</span>
-                <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
+            <div class="tf-my-alerts-wrap" id="tfMyAlertsWrap">
+                <button type="button" class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches" aria-haspopup="true" aria-expanded="false" onclick="togglePersonalAlertMenu(event)">
+                    🔔 <span>Mes tâches</span>
+                    <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
+                </button>
+                <div class="tf-my-alerts-menu" id="tfMyAlertsMenu" role="menu" aria-label="Mes tâches"></div>
             </div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
@@ -1770,6 +1799,78 @@ let currentUser = {
             ).length;
         }
 
+        function closePersonalAlertMenu() {
+            const menu = document.getElementById('tfMyAlertsMenu');
+            const btn = document.getElementById('tfMyAlerts');
+            if (menu) menu.classList.remove('open');
+            if (btn) btn.setAttribute('aria-expanded','false');
+        }
+
+        function togglePersonalAlertMenu(ev) {
+            if (ev) ev.stopPropagation();
+            const menu = document.getElementById('tfMyAlertsMenu');
+            if (!menu) return;
+            const opening = !menu.classList.contains('open');
+            document.querySelectorAll('.tf-my-alerts-menu.open').forEach(x => x.classList.remove('open'));
+            menu.classList.toggle('open', opening);
+            const realBtn = document.getElementById('tfMyAlerts');
+            if (realBtn) realBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+            if (opening) renderPersonalAlertMenu();
+        }
+
+        function renderPersonalAlertMenu() {
+            const menu = document.getElementById('tfMyAlertsMenu');
+            if (!menu) return;
+            if (!currentUser?.eligible) {
+                menu.innerHTML = '<div class="tf-alert-empty">Votre identité Taskflow n’est pas disponible.</div>';
+                return;
+            }
+
+            const list = getPersonalAlertTasks();
+            const identity = escapeHtml(currentUser.name || currentUser.email || 'Utilisateur');
+            const head = `<div class="tf-alert-menu-head"><strong>🔔 Mes tâches · ${identity}</strong><small>${list.length} tâche${list.length > 1 ? 's' : ''} active${list.length > 1 ? 's' : ''}</small></div>`;
+            if (!list.length) {
+                menu.innerHTML = head + '<div class="tf-alert-empty">Aucune tâche active ne vous est attribuée.</div>';
+                return;
+            }
+
+            const groups = new Map();
+            list.forEach(task => {
+                const key = Number(task.projet || 0);
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(task);
+            });
+
+            const body = [...groups.entries()]
+                .sort((a,b) => getProjectName(a[0]).localeCompare(getProjectName(b[0]), 'fr'))
+                .map(([projectId, arr]) => {
+                    const projectLabel = escapeHtml(getProjectName(projectId) || 'Sans projet');
+                    const tasksHtml = arr.map(task => {
+                        const status = getStatusConfigEntry(task);
+                        const statusLabel = escapeHtml(status?.label || normalizeStatusValue(task.statut));
+                        const priority = getPriority(task);
+                        const due = task.dateEcheance ? gristToDate(task.dateEcheance) : null;
+                        const dueText = due ? formatDateShort(due) : '';
+                        const overdue = due && due < new Date() && !TF.isTerminal(statusCfg, getEffectiveStatusValue(task));
+                        return `<button type="button" class="tf-alert-task" role="menuitem" onclick="openPersonalAlertTask(${Number(task.id)})">
+                            <span class="tf-alert-task-title"><span class="tf-alert-priority">P${priority}</span><span>${escapeHtml(task.titre || 'Sans titre')}</span></span>
+                            <span class="tf-alert-task-meta"><span class="tf-alert-status">${statusLabel}</span>${dueText ? `<span class="tf-alert-due${overdue ? ' overdue' : ''}">Échéance : ${escapeHtml(dueText)}${overdue ? ' · en retard' : ''}</span>` : ''}</span>
+                        </button>`;
+                    }).join('');
+                    return `<div class="tf-alert-project">${projectLabel} · ${arr.length}</div>${tasksHtml}`;
+                }).join('');
+
+            menu.innerHTML = head + body + '<div class="tf-alert-menu-note">Cliquez sur une tâche pour ouvrir directement sa fiche dans le Kanban.</div>';
+        }
+
+        function openPersonalAlertTask(taskId) {
+            const id = Number(taskId);
+            const task = tasks.find(t => Number(t.id) === id);
+            if (!task || !isPersonalAlertTask(task)) return;
+            closePersonalAlertMenu();
+            openTaskPanel(id, {floating:false});
+        }
+
         function updatePersonalAlertsBadge() {
             const box = document.getElementById('tfMyAlerts');
             const countEl = document.getElementById('tfMyAlertsCount');
@@ -1777,7 +1878,7 @@ let currentUser = {
 
             if (!currentUser?.eligible) {
                 box.style.display = 'none';
-                box.title = 'Identité personnelle non disponible pour le moment.';
+                closePersonalAlertMenu();
                 return;
             }
 
@@ -1788,7 +1889,13 @@ let currentUser = {
             box.title = count
                 ? `${count} tâche${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''} vous ${count > 1 ? 'sont' : 'est'} attribuée${count > 1 ? 's' : ''}.`
                 : 'Aucune tâche active ne vous est attribuée.';
+            if (document.getElementById('tfMyAlertsMenu')?.classList.contains('open')) renderPersonalAlertMenu();
         }
+
+        document.addEventListener('click', function(ev) {
+            const wrap = document.getElementById('tfMyAlertsWrap');
+            if (wrap && !wrap.contains(ev.target)) closePersonalAlertMenu();
+        });
 
         function personalAlertHtml(task, small = false) {
             return isPersonalAlertTask(task)
