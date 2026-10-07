@@ -738,16 +738,6 @@
 /* V10 — bouton principal de gestion des projets */
 .btn.project-manager-main{background:#f0982d!important;color:#fff!important;border:1px solid #f0982d!important;font-weight:700!important;box-shadow:0 2px 7px rgba(240,152,45,.22);white-space:nowrap;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:145px;height:34px;padding:0 12px;}
 .btn.project-manager-main:hover{background:#d97f17!important;border-color:#d97f17!important;}
-
-        /* V30.1 — menu Mes tâches : couche minimale, sans écouteur global */
-        .tf-my-tasks-menu { position:absolute; top:calc(100% + 8px); right:0; width:min(390px, calc(100vw - 24px)); max-height:420px; overflow:auto; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg); padding:8px; z-index:900; display:none; }
-        .tf-my-tasks-menu.open { display:block; }
-        .tf-my-tasks-menu-title { padding:7px 9px 9px; font-size:.78rem; font-weight:700; color:var(--text); border-bottom:1px solid var(--border); margin-bottom:5px; }
-        .tf-my-task-item { display:block; width:100%; border:0; background:transparent; text-align:left; padding:9px; border-radius:8px; cursor:pointer; color:var(--text); }
-        .tf-my-task-item:hover { background:var(--primary-light); }
-        .tf-my-task-title { font-size:.76rem; font-weight:650; line-height:1.3; }
-        .tf-my-task-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; font-size:.64rem; color:var(--text-muted); }
-        .tf-my-task-empty { padding:12px 9px; font-size:.74rem; color:var(--text-muted); line-height:1.45; }
 </style>
 
 <style id="taskflow-v9-project-manager">
@@ -810,10 +800,9 @@
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
-            <div class="tf-my-alerts" id="tfMyAlerts" title="V30.1 — Mes tâches" style="position:relative" onclick="toggleMyTasksMenu(event)">
+            <div class="tf-my-alerts" id="tfMyAlerts" title="V27 — alertes personnelles">
                 🔔 <span>Mes tâches</span>
                 <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
-                <div class="tf-my-tasks-menu" id="tfMyTasksMenu" onclick="event.stopPropagation()"></div>
             </div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
@@ -1742,41 +1731,6 @@ let currentUser = {
 
         function getPersonalAlertTasks() {
             return currentUser?.eligible ? (tasks || []).filter(isPersonalAlertTask) : [];
-        }
-
-        // V30.1 — ouverture du menu depuis le clic existant sur « Mes tâches ».
-        // Aucun addEventListener supplémentaire et aucune modification de l'identité V29.
-        function toggleMyTasksMenu(ev) {
-            if (ev) ev.stopPropagation();
-            const menu = document.getElementById('tfMyTasksMenu');
-            if (!menu) return;
-            if (menu.classList.contains('open')) {
-                menu.classList.remove('open');
-                return;
-            }
-            const mine = getPersonalAlertTasks();
-            const title = `<div class="tf-my-tasks-menu-title">Mes tâches · ${mine.length}</div>`;
-            if (!mine.length) {
-                menu.innerHTML = title + '<div class="tf-my-task-empty">Aucune tâche active ne vous est attribuée.</div>';
-            } else {
-                menu.innerHTML = title + mine.map(t => {
-                    const p = projects.find(x => Number(x.id) === Number(t.projet));
-                    const st = TF.getStatus(statusCfg, getEffectiveStatusValue(t));
-                    const priority = PRIORITY_LABELS[Number(t.priorite)] || '';
-                    const meta = [p?.nom || '', st?.label || '', priority].filter(Boolean).map(escapeHtml).join(' · ');
-                    return `<button type="button" class="tf-my-task-item" onclick="openMyAlertTask(${Number(t.id)}, event)"><div class="tf-my-task-title">${escapeHtml(t.titre || '(sans titre)')}</div><div class="tf-my-task-meta">${meta}</div></button>`;
-                }).join('');
-            }
-            menu.classList.add('open');
-        }
-
-        function openMyAlertTask(taskId, ev) {
-            if (ev) ev.stopPropagation();
-            const menu = document.getElementById('tfMyTasksMenu');
-            if (menu) menu.classList.remove('open');
-            const task = (tasks || []).find(t => Number(t.id) === Number(taskId));
-            if (!task || !isPersonalAlertTask(task)) return;
-            openTaskPanel(task.id);
         }
 
         function getPersonalAlertCountForProject(projectId) {
