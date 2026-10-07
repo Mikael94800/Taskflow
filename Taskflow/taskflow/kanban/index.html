@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <!-- Taskflow V29 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban - TaskFlow V30</title>
+    <title>Kanban - TaskFlow V30.1</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -547,7 +547,7 @@
         .tf-user-badge .tf-user-service { font-weight:500; color:var(--text-muted); }
         @media(max-width:1100px){ .tf-user-badge { max-width:210px; } }
 
-        /* V30 — alertes personnelles : menu des tâches + ouverture dans le Kanban actuel */
+        /* V30.1 — menu Mes tâches, isolé du mécanisme d'identification V29 */
         .tf-my-alerts {
             position:relative; display:inline-flex; align-items:center; gap:6px; min-height:30px;
             padding:0 10px; border:1px solid var(--border); border-radius:8px;
@@ -560,12 +560,12 @@
         .tf-alert-chevron { font-size:.62rem; color:currentColor; transition:transform .15s ease; margin-left:1px; }
         .tf-my-alerts.open .tf-alert-chevron { transform:rotate(180deg); }
         .tf-alert-menu {
-            position:absolute; top:calc(100% + 8px); right:0; width:360px; max-width:min(360px, 78vw);
-            padding:7px; border:1px solid var(--border); border-radius:10px;
-            background:var(--card-bg); box-shadow:0 12px 30px rgba(15,23,42,.16);
-            z-index:1200; display:none; color:var(--text); font-weight:500; white-space:normal;
+            position:fixed; width:360px; max-width:min(360px, 78vw); padding:7px;
+            border:1px solid var(--border); border-radius:10px; background:var(--card-bg);
+            box-shadow:0 12px 30px rgba(15,23,42,.16); z-index:99999;
+            display:none; color:var(--text); font-weight:500; white-space:normal;
         }
-        .tf-my-alerts.open .tf-alert-menu { display:block; }
+        .tf-alert-menu.open { display:block; }
         .tf-alert-menu-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 7px 7px; border-bottom:1px solid var(--border); margin-bottom:4px; }
         .tf-alert-menu-title { font-size:.73rem; font-weight:800; color:var(--text); }
         .tf-alert-menu-subtitle { font-size:.62rem; color:var(--text-muted); }
@@ -584,6 +584,12 @@
         .tf-alert-item-due { margin-left:auto; white-space:nowrap; }
         .tf-alert-empty { padding:18px 10px; text-align:center; color:var(--text-muted); font-size:.68rem; line-height:1.4; }
         .tf-alert-menu-foot { padding:6px 7px 2px; color:var(--text-light); font-size:.58rem; border-top:1px solid var(--border); margin-top:4px; }
+        .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
+        .tf-my-alerts .tf-alert-count {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:18px; height:18px; padding:0 5px; border-radius:999px;
+            background:#f97316; color:white; font-size:.6rem; font-weight:800;
+        }
         .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
         .tf-my-alerts .tf-alert-count {
             display:inline-flex; align-items:center; justify-content:center;
@@ -830,12 +836,12 @@
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
-            <div class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches actives" onclick="togglePersonalAlertsMenu(event)">
+            <div class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches actives" role="button" tabindex="0" aria-expanded="false">
                 🔔 <span>Mes tâches</span>
                 <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
                 <span class="tf-alert-chevron">▾</span>
-                <div class="tf-alert-menu" id="tfPersonalAlertsMenu" onclick="event.stopPropagation()"></div>
             </div>
+            <div class="tf-alert-menu" id="tfPersonalAlertsMenu" aria-hidden="true"></div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
                 <button class="filter-btn" id="filterBtn" onclick="toggleFilterMenu('all')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg> Filtres<span class="filter-count" id="filterCount" style="display:none">0</span></button>
@@ -1775,92 +1781,80 @@ let currentUser = {
         function renderPersonalAlertsMenu() {
             const menu = document.getElementById('tfPersonalAlertsMenu');
             if (!menu) return;
-
             if (!currentUser?.eligible) {
                 menu.innerHTML = '<div class="tf-alert-empty">Identité personnelle non disponible pour le moment.</div>';
                 return;
             }
-
             const alertTasks = getPersonalAlertTasks().slice().sort((a, b) => {
                 const da = gristToDate(a.dateEcheance)?.getTime() || Number.MAX_SAFE_INTEGER;
                 const db = gristToDate(b.dateEcheance)?.getTime() || Number.MAX_SAFE_INTEGER;
                 if (da !== db) return da - db;
                 return String(a.titre || '').localeCompare(String(b.titre || ''), 'fr', { sensitivity:'base' });
             });
-
             if (!alertTasks.length) {
-                menu.innerHTML = `
-                    <div class="tf-alert-menu-head">
-                        <span class="tf-alert-menu-title">Mes tâches</span>
-                        <span class="tf-alert-menu-subtitle">0 tâche active</span>
-                    </div>
-                    <div class="tf-alert-empty">Aucune tâche active ne vous est attribuée.</div>`;
+                menu.innerHTML = `<div class="tf-alert-menu-head"><span class="tf-alert-menu-title">Mes tâches</span><span class="tf-alert-menu-subtitle">0 tâche active</span></div><div class="tf-alert-empty">Aucune tâche active ne vous est attribuée.</div>`;
                 return;
             }
-
             const items = alertTasks.map(task => {
                 const statusValue = getEffectiveStatusValue(task);
-                const status = TF.getStatus(statusCfg, statusValue);
+                const status = TF.getStatus(statusCfg, statusValue) || {};
                 const project = projects.find(p => Number(p.id) === Number(task.projet));
                 const due = gristToDate(task.dateEcheance);
                 const dueLabel = due ? formatDateShort(due) : '';
                 const priority = PRIORITY_LABELS[getPriority(task)] || '';
-                return `
-                    <button type="button" class="tf-alert-item" onclick="openPersonalAlertTask(${Number(task.id)})" title="Ouvrir cette tâche dans le Kanban">
-                        <span class="tf-alert-item-icon">🔔</span>
-                        <span class="tf-alert-item-main">
-                            <span class="tf-alert-item-title">${escapeHtml(task.titre || 'Sans titre')}</span>
-                            <span class="tf-alert-item-meta">
-                                <span class="tf-alert-item-status" style="color:${status.textColor || 'var(--text-muted)'}">${escapeHtml(status.label || statusValue || '')}</span>
-                                ${project ? `<span>• ${escapeHtml(project.nom)}</span>` : ''}
-                                ${priority ? `<span>• ${escapeHtml(priority)}</span>` : ''}
-                                ${dueLabel ? `<span class="tf-alert-item-due">📅 ${escapeHtml(dueLabel)}</span>` : ''}
-                            </span>
-                        </span>
-                    </button>`;
+                return `<button type="button" class="tf-alert-item" data-alert-task-id="${Number(task.id)}" title="Ouvrir cette tâche dans le Kanban"><span class="tf-alert-item-icon">🔔</span><span class="tf-alert-item-main"><span class="tf-alert-item-title">${escapeHtml(task.titre || 'Sans titre')}</span><span class="tf-alert-item-meta"><span class="tf-alert-item-status">${escapeHtml(status.label || statusValue || '')}</span>${project ? `<span>• ${escapeHtml(project.nom)}</span>` : ''}${priority ? `<span>• ${escapeHtml(priority)}</span>` : ''}${dueLabel ? `<span class="tf-alert-item-due">📅 ${escapeHtml(dueLabel)}</span>` : ''}</span></span></button>`;
             }).join('');
+            menu.innerHTML = `<div class="tf-alert-menu-head"><span class="tf-alert-menu-title">Mes tâches à effectuer</span><span class="tf-alert-menu-subtitle">${alertTasks.length} tâche${alertTasks.length > 1 ? 's' : ''}</span></div><div class="tf-alert-menu-list">${items}</div><div class="tf-alert-menu-foot">Cliquez sur une tâche pour l'ouvrir dans le Kanban actuel.</div>`;
+        }
 
-            menu.innerHTML = `
-                <div class="tf-alert-menu-head">
-                    <span class="tf-alert-menu-title">Mes tâches à effectuer</span>
-                    <span class="tf-alert-menu-subtitle">${alertTasks.length} tâche${alertTasks.length > 1 ? 's' : ''}</span>
-                </div>
-                <div class="tf-alert-menu-list">${items}</div>
-                <div class="tf-alert-menu-foot">Cliquez sur une tâche pour l'ouvrir dans le Kanban actuel.</div>`;
+        function positionPersonalAlertsMenu() {
+            const box = document.getElementById('tfMyAlerts');
+            const menu = document.getElementById('tfPersonalAlertsMenu');
+            if (!box || !menu) return;
+            const r = box.getBoundingClientRect();
+            const width = Math.min(360, Math.max(260, window.innerWidth * 0.78));
+            menu.style.width = width + 'px';
+            let left = r.right - width;
+            left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+            let top = r.bottom + 8;
+            const h = menu.offsetHeight;
+            if (top + h > window.innerHeight - 8 && r.top - h - 8 > 8) top = r.top - h - 8;
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+        }
+
+        function closePersonalAlertsMenu() {
+            const box = document.getElementById('tfMyAlerts');
+            const menu = document.getElementById('tfPersonalAlertsMenu');
+            if (box) { box.classList.remove('open'); box.setAttribute('aria-expanded','false'); }
+            if (menu) { menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
         }
 
         function togglePersonalAlertsMenu(ev) {
             if (ev) { ev.preventDefault(); ev.stopPropagation(); }
             const box = document.getElementById('tfMyAlerts');
-            if (!box || box.style.display === 'none') return;
-            const willOpen = !box.classList.contains('open');
-            document.querySelectorAll('.tf-my-alerts.open').forEach(x => x.classList.remove('open'));
-            if (willOpen) {
-                renderPersonalAlertsMenu();
-                box.classList.add('open');
-            }
-        }
-
-        function closePersonalAlertsMenu() {
-            document.getElementById('tfMyAlerts')?.classList.remove('open');
+            const menu = document.getElementById('tfPersonalAlertsMenu');
+            if (!box || !menu || box.style.display === 'none' || !currentUser?.eligible) return;
+            if (box.classList.contains('open')) { closePersonalAlertsMenu(); return; }
+            renderPersonalAlertsMenu();
+            menu.classList.add('open');
+            box.classList.add('open');
+            box.setAttribute('aria-expanded','true');
+            menu.setAttribute('aria-hidden','false');
+            requestAnimationFrame(positionPersonalAlertsMenu);
         }
 
         function openPersonalAlertTask(taskId) {
             const id = Number(taskId);
             if (!Number.isFinite(id)) return;
-            closePersonalAlertsMenu();
             const task = tasks.find(t => Number(t.id) === id);
-            if (!task) {
-                showToast('Cette tâche n’est plus disponible dans le Kanban.', 'error');
-                return;
-            }
-            // On conserve le mode de regroupement actuel (Statut / Priorité / Projet).
+            closePersonalAlertsMenu();
+            if (!task) { showToast('Cette tâche n’est plus disponible dans le Kanban.', 'error'); return; }
             openTaskPanel(id);
-            // Si la carte est visible dans le Kanban actuel, on la recentre également.
             setTimeout(() => {
                 const card = document.querySelector(`.task-card[data-id="${id}"]`);
                 if (card) card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
-            }, 80);
+            }, 100);
         }
 
         function updatePersonalAlertsBadge() {
@@ -1870,7 +1864,6 @@ let currentUser = {
 
             if (!currentUser?.eligible) {
                 box.style.display = 'none';
-                box.classList.remove('open');
                 box.title = 'Identité personnelle non disponible pour le moment.';
                 return;
             }
@@ -1882,7 +1875,6 @@ let currentUser = {
             box.title = count
                 ? `${count} tâche${count > 1 ? 's' : ''} active${count > 1 ? 's' : ''} vous ${count > 1 ? 'sont' : 'est'} attribuée${count > 1 ? 's' : ''}.`
                 : 'Aucune tâche active ne vous est attribuée.';
-            renderPersonalAlertsMenu();
         }
 
         function personalAlertHtml(task, small = false) {
@@ -3292,19 +3284,43 @@ container.innerHTML = columns.map(col => `
             render();
         }
 
+        // V30.1 — ouverture du menu Mes tâches, indépendante de l'identification V29.
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-alert-task-id]');
+            if (item) {
+                e.preventDefault();
+                e.stopPropagation();
+                openPersonalAlertTask(item.dataset.alertTaskId);
+                return;
+            }
+            const alerts = e.target.closest('#tfMyAlerts');
+            if (alerts) {
+                togglePersonalAlertsMenu(e);
+                return;
+            }
+            if (!e.target.closest('#tfPersonalAlertsMenu')) closePersonalAlertsMenu();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePersonalAlertsMenu();
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('#tfMyAlerts')) togglePersonalAlertsMenu(e);
+        });
+        window.addEventListener('resize', () => {
+            const menu = document.getElementById('tfPersonalAlertsMenu');
+            if (menu?.classList.contains('open')) positionPersonalAlertsMenu();
+        });
+
         // Events
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.quick-assignee')) document.querySelectorAll('.quick-assignee.open').forEach(x=>x.classList.remove('open'));
             if (!e.target.closest('.quick-project')) document.querySelectorAll('.quick-project.open').forEach(x=>x.classList.remove('open'));
             if (!e.target.closest('.filter-dropdown')) document.querySelectorAll('.filter-menu').forEach(m => m.classList.remove('open'));
             if (!e.target.closest('.multi-select')) document.querySelectorAll('.multi-select').forEach(s => s.classList.remove('open'));
-            if (!e.target.closest('.tf-my-alerts')) closePersonalAlertsMenu();
             // Fermer les pickers couleur (Projects / Team) si clic extérieur
             if (!e.target.closest('.color-picker-pop, .project-color-dot, .member-color-picker, .member-color-dot')) {
                 document.querySelectorAll('.color-picker-pop, .member-color-picker').forEach(p => p.classList.remove('open'));
             }
             // GEN-01: Désélection si clic en dehors d'une carte, du panel ou des contrôles
-            if (!e.target.closest('.task-card, .panel, .toolbar, .filter-dropdown, .column-add-btn, .btn, .tf-my-alerts')) {
+            if (!e.target.closest('.task-card, .panel, .toolbar, .filter-dropdown, .column-add-btn, .btn')) {
                 if (selectedTaskId !== null && !panelState.open) {
                     selectedTaskId = null;
                     render();
