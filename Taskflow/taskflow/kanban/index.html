@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <!-- Taskflow V24 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
+    <!-- Taskflow V29 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kanban - TaskFlow V27</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
@@ -796,7 +796,7 @@
             </div>
         </div>
         <div class="hdr-right">
-            <div class="tf-user-badge" id="tfUserBadge" title="V28 — identification via TEST_Utilisateur + liaison Team">
+            <div class="tf-user-badge" id="tfUserBadge" title="V29 — identification directe Grist + correspondance TEAM">
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
@@ -1598,25 +1598,25 @@ let currentUser = {
             } else if (currentUser.status === 'not-configured') {
                 el.classList.add('warn');
                 txt.textContent = '👤 Identité non configurée';
-                el.title = 'V26 : TEST_Utilisateur est absente ou ne contient aucune ligne exploitable.';
+                el.title = 'V29 : l’identité Grist n’a pas pu être exploitée.';
             } else if (currentUser.status === 'not-found') {
                 el.classList.add('warn');
                 txt.textContent = '👤 Utilisateur non identifié';
-                el.title = 'V26 : aucune ligne TEST_Utilisateur ne permet d’identifier l’utilisateur courant.';
+                el.title = currentUser.error || 'V29 : aucun membre TEAM ne correspond à l’identité Grist.';
             } else {
                 el.classList.add('error');
                 txt.textContent = '👤 Identification indisponible';
-                el.title = currentUser.error || 'V26 : erreur lors de la lecture de TEST_Utilisateur.';
+                el.title = currentUser.error || 'V29 : erreur lors de l’identification Grist.';
             }
         }
 
-        // V27 — Alertes personnelles.
+        // V29 — Alertes personnelles.
         // Aucun stockage supplémentaire : le compteur est calculé à partir de Tasks.assignees.
         // Une alerte = tâche attribuée à l'utilisateur courant, non terminée.
-        // V28 — Liaison robuste entre l'identité Grist et la référence Team.
-        // Dans le document réel, Team.email peut être vide ou légèrement différent
-        // de l'adresse utilisée par Grist. On conserve la correspondance exacte par
-        // email, puis un rapprochement prudent nom <-> partie locale de l'email.
+        // V29 — Identification directe de l'utilisateur connecté puis liaison avec Team.
+        // TEST_Utilisateur n'intervient plus. La priorité est une correspondance
+        // exacte par email ; à défaut, si le jeton Grist fournit seulement un nom,
+        // une correspondance par nom n'est acceptée que si elle est unique.
         function normalizePersonText(value) {
             return String(value || '')
                 .normalize('NFD')
@@ -1658,32 +1658,59 @@ let currentUser = {
         function teamMemberMatchesCurrentEmail(member, email) {
             const target = normalizeEmail(email);
             if (!member || !target) return false;
+            return normalizeEmail(member.email) === target;
+        }
 
-            // 1. Correspondance normale : Team.email = adresse Grist.
-            if (normalizeEmail(member.email) === target) return true;
+        function teamMemberMatchesCurrentName(member, name) {
+            if (!member || !name) return false;
+            return normalizePersonText(member.nom) === normalizePersonText(name);
+        }
 
-            const local = target.split('@')[0] || '';
-            const localTokens = personNameTokens(local);
-            const nameTokens = personNameTokens(member.nom);
+        function decodeCurrentUserTokenPayload(token) {
+            try {
+                const raw = String(token || '');
+                const parts = raw.split('.');
+                if (parts.length !== 3) return null;
+                let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                while (b64.length % 4) b64 += '=';
+                return JSON.parse(atob(b64));
+            } catch (e) {
+                return null;
+            }
+        }
 
-            if (localTokens.length < 2 || nameTokens.length < 2) return false;
-
-            // 2. Correspondance exacte des deux parties (ex. prenom.nom).
-            const localNorm = normalizePersonText(local);
-            const nameNorm = normalizePersonText(member.nom);
-            if (localNorm === nameNorm) return true;
-
-            // 3. Tolérance d'une petite différence de frappe dans le nom de famille.
-            // Le prénom doit être identique et le nom très proche.
-            if (localTokens[0] === nameTokens[0]) {
-                const surnameEmail = localTokens[localTokens.length - 1];
-                const surnameTeam = nameTokens[nameTokens.length - 1];
-                const maxLen = Math.max(surnameEmail.length, surnameTeam.length);
-                const distance = levenshteinDistance(surnameEmail, surnameTeam);
-                if (maxLen >= 4 && distance <= 1) return true;
+        async function getConnectedUserIdentity() {
+            // Les widgets Grist n'exposent pas, dans l'API document officielle,
+            // une fonction getCurrentUser(). Les anciennes installations Grist
+            // utilisées par Taskflow fournissent toutefois un jeton JWT via
+            // getAccessToken(), dont le payload peut contenir userId/email/name.
+            const tokenInfo = await grist.docApi.getAccessToken({ readOnly: true });
+            const payload = decodeCurrentUserTokenPayload(tokenInfo?.token);
+            if (!payload) {
+                return { email: '', name: '', userId: null, source: 'token-unavailable' };
             }
 
-            return false;
+            const email = normalizeEmail(
+                payload.email || payload.Email || payload.userEmail || payload.user_email || ''
+            );
+            const name = String(
+                payload.name || payload.Name || payload.userName || payload.user_name || ''
+            ).trim();
+            const userId = Number(payload.userId ?? payload.UserID ?? payload.userid);
+
+            console.info('[V29] Identité extraite du jeton Grist:', {
+                userId: Number.isFinite(userId) ? userId : null,
+                hasEmail: !!email,
+                hasName: !!name,
+                tokenClaims: Object.keys(payload)
+            });
+
+            return {
+                email,
+                name,
+                userId: Number.isFinite(userId) ? userId : null,
+                source: 'token'
+            };
         }
 
         function getCurrentUserTeamMembers() {
@@ -1694,7 +1721,7 @@ let currentUser = {
         }
 
         function isPersonalAlertTask(task) {
-            if (!currentUser?.eligible || !currentUser?.email || !task) return false;
+            if (!currentUser?.eligible || !task) return false;
             const status = getEffectiveStatusValue(task);
             if (TF.isTerminal(statusCfg, status) || Number(task.progression || 0) >= 100) return false;
 
@@ -1720,7 +1747,7 @@ let currentUser = {
 
             if (!currentUser?.eligible) {
                 box.style.display = 'none';
-                box.title = 'Alertes personnelles réservées aux membres de la Direction.';
+                box.title = 'Identité personnelle non disponible pour le moment.';
                 return;
             }
 
@@ -1740,74 +1767,74 @@ let currentUser = {
         }
 
         async function loadCurrentUserContext() {
-            currentUser = { email:'', name:'', service:'', eligible:false, status:'pending' };
+            currentUser = { email:'', name:'', service:'', eligible:false, status:'pending', teamIds:[] };
             updateCurrentUserBadge();
 
             try {
-                const raw = await grist.docApi.fetchTable('TEST_Utilisateur');
-                const rows = convertGristToRecords(raw).map(r => ({
-                    cible: normalizeEmail(r.CibleEmail),
-                    creator: normalizeEmail(r.UtilisateurEmail),
-                    service: String(r.ServiceUtilisateur || '').trim()
-                })).filter(r => r.cible);
+                const identity = await getConnectedUserIdentity();
+                let matchedMembers = [];
 
-                if (!rows.length) {
-                    currentUser.status = 'not-configured';
-                    updateCurrentUserBadge();
-                    return;
+                // 1. Méthode privilégiée : email exact entre l'identité Grist et Team.email.
+                if (identity.email) {
+                    matchedMembers = (team || []).filter(t =>
+                        teamMemberMatchesCurrentEmail(t, identity.email)
+                    );
                 }
 
-                // Propriétaire : plusieurs lignes peuvent être visibles.
-                // La ligne dont CibleEmail = UtilisateurEmail identifie le propriétaire.
-                let email = '';
-                const selfRow = rows.find(r => r.creator && r.creator === r.cible);
-                if (selfRow) {
-                    email = selfRow.cible;
-                } else {
-                    // Éditeur soumis à une règle de ligne : normalement une seule
-                    // ligne est visible. On accepte aussi plusieurs lignes si la cible
-                    // restante est unique.
-                    const unique = [...new Set(rows.map(r => r.cible).filter(Boolean))];
-                    if (unique.length === 1) email = unique[0];
+                // 2. Repli strict : nom exact, uniquement si une seule personne de Team
+                // porte ce nom. Ce n'est pas une correspondance approximative.
+                if (!matchedMembers.length && identity.name) {
+                    const byName = (team || []).filter(t =>
+                        teamMemberMatchesCurrentName(t, identity.name)
+                    );
+                    if (byName.length === 1) matchedMembers = byName;
                 }
 
-                if (!email) {
+                if (!matchedMembers.length) {
                     currentUser.status = 'not-found';
+                    currentUser.email = identity.email || '';
+                    currentUser.name = identity.name || '';
+                    currentUser.error = identity.source === 'token-unavailable'
+                        ? 'Le jeton d’identité Grist n’est pas exploitable dans ce contexte.'
+                        : (identity.email || identity.name
+                            ? 'Aucun membre de TEAM ne correspond à l’identité Grist.'
+                            : 'Le jeton Grist ne fournit ni email ni nom exploitable pour faire la correspondance avec TEAM.');
                     updateCurrentUserBadge();
+                    console.warn('[V29] Aucun correspondant Team.', { identity });
                     return;
                 }
 
-                const matching = rows.find(r => r.cible === email) || {};
-                const matchedMembers = (team || []).filter(t =>
-                    teamMemberMatchesCurrentEmail(t, email)
-                );
+                if (matchedMembers.length > 1) {
+                    currentUser.status = 'not-found';
+                    currentUser.email = identity.email || '';
+                    currentUser.name = identity.name || '';
+                    currentUser.error = 'Plusieurs membres de TEAM correspondent à cette identité.';
+                    updateCurrentUserBadge();
+                    console.warn('[V29] Correspondance Team non unique:', matchedMembers);
+                    return;
+                }
 
-                currentUser.email = email;
-                currentUser.service = matching.service || '';
-                currentUser.teamIds = matchedMembers.map(m => Number(m.id)).filter(Number.isFinite);
-                currentUser.teamName = matchedMembers.length === 1 ? (matchedMembers[0].nom || '') : '';
-                currentUser.name = currentUser.teamName || email;
-                currentUser.eligible = currentUser.service.toLowerCase() === 'direction';
+                const member = matchedMembers[0];
+                currentUser.email = identity.email || normalizeEmail(member.email);
+                currentUser.name = member.nom || identity.name || currentUser.email || 'Utilisateur';
+                currentUser.teamIds = [Number(member.id)].filter(Number.isFinite);
+                currentUser.teamName = member.nom || '';
+                currentUser.eligible = currentUser.teamIds.length === 1;
                 currentUser.status = 'ok';
 
                 updateCurrentUserBadge();
 
-                console.info('[V26] Utilisateur courant identifié:', {
+                console.info('[V29] Utilisateur courant identifié directement dans TEAM:', {
                     email: currentUser.email,
-                    service: currentUser.service,
                     name: currentUser.name,
-                    eligible: currentUser.eligible
-                });
-                console.info('[V28] Correspondance Team:', {
                     teamIds: currentUser.teamIds,
-                    teamName: currentUser.teamName,
-                    teamMembers: matchedMembers.map(m => ({id: m.id, nom: m.nom, email: m.email}))
+                    teamName: currentUser.teamName
                 });
-                console.info('[V28] Alertes personnelles initiales:', getPersonalAlertTasks().length);
+                console.info('[V29] Alertes personnelles initiales:', getPersonalAlertTasks().length);
             } catch (e) {
                 currentUser.status = 'error';
                 currentUser.error = e?.message || String(e);
-                console.error('[V26] Identification utilisateur:', e);
+                console.error('[V29] Identification utilisateur:', e);
                 updateCurrentUserBadge();
             }
         }
