@@ -827,7 +827,7 @@
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
             <div class="tf-my-alerts-wrap" id="tfMyAlertsWrap">
-                <button type="button" class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches" aria-haspopup="true" aria-expanded="false" onclick="togglePersonalAlertMenu(event)">
+                <button type="button" class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches" aria-haspopup="true" aria-expanded="false" >
                     🔔 <span>Mes tâches</span>
                     <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
                 </button>
@@ -1891,6 +1891,17 @@ let currentUser = {
                 : 'Aucune tâche active ne vous est attribuée.';
             if (document.getElementById('tfMyAlertsMenu')?.classList.contains('open')) renderPersonalAlertMenu();
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('tfMyAlerts');
+            if (btn) {
+                btn.addEventListener('click', function(ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    togglePersonalAlertMenu(ev);
+                });
+            }
+        });
 
         document.addEventListener('click', function(ev) {
             const wrap = document.getElementById('tfMyAlertsWrap');
