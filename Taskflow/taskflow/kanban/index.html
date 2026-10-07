@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <!-- Taskflow V29 : socle V17, sans glisser-déposer des tâches ; hiérarchie et statuts stabilisés -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban - TaskFlow V30.2</title>
+    <title>Kanban - TaskFlow V27</title>
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -547,39 +547,13 @@
         .tf-user-badge .tf-user-service { font-weight:500; color:var(--text-muted); }
         @media(max-width:1100px){ .tf-user-badge { max-width:210px; } }
 
-        /* V30.2 — menu Mes tâches ajouté sans modifier le mécanisme d'identification V29 */
+        /* V28 — alertes personnelles : visuelles uniquement, sans nouvelle table */
         .tf-my-alerts {
-            position:relative; display:inline-flex; align-items:center; gap:6px; min-height:30px;
+            display:inline-flex; align-items:center; gap:6px; min-height:30px;
             padding:0 10px; border:1px solid var(--border); border-radius:8px;
             background:var(--surface-2); color:var(--text-muted);
             font-size:.69rem; font-weight:700; white-space:nowrap;
         }
-        .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
-        .tf-alert-chevron { font-size:.62rem; color:currentColor; transition:transform .15s ease; margin-left:1px; }
-        .tf-my-alerts.open .tf-alert-chevron { transform:rotate(180deg); }
-        .tf-my-alert-menu {
-            position:fixed; width:360px; max-width:min(360px,78vw); max-height:430px; overflow:auto;
-            padding:7px; border:1px solid var(--border); border-radius:10px; background:var(--card-bg);
-            box-shadow:0 12px 30px rgba(15,23,42,.16); z-index:99999; display:none;
-            color:var(--text); font-weight:500; white-space:normal;
-        }
-        .tf-my-alert-menu.open { display:block; }
-        .tf-alert-menu-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 7px 7px; border-bottom:1px solid var(--border); margin-bottom:4px; }
-        .tf-alert-menu-title { font-size:.73rem; font-weight:800; color:var(--text); }
-        .tf-alert-menu-subtitle { font-size:.62rem; color:var(--text-muted); }
-        .tf-alert-item {
-            width:100%; display:flex; align-items:flex-start; gap:8px; padding:9px 8px; border:0; border-radius:8px;
-            background:transparent; color:var(--text); text-align:left; cursor:pointer; font:inherit;
-        }
-        .tf-alert-item:hover { background:var(--surface-2); }
-        .tf-alert-item-icon { width:24px; height:24px; flex:0 0 24px; display:flex; align-items:center; justify-content:center; border-radius:7px; background:#fff7ed; color:#ea580c; font-size:.72rem; }
-        .tf-alert-item-main { min-width:0; flex:1; }
-        .tf-alert-item-title { font-size:.7rem; font-weight:750; line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .tf-alert-item-meta { display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:4px; color:var(--text-muted); font-size:.59rem; line-height:1.2; }
-        .tf-alert-item-status { font-weight:700; }
-        .tf-alert-item-due { white-space:nowrap; }
-        .tf-alert-empty { padding:18px 10px; text-align:center; color:var(--text-muted); font-size:.68rem; line-height:1.4; }
-        .tf-alert-menu-foot { padding:6px 7px 2px; color:var(--text-light); font-size:.58rem; border-top:1px solid var(--border); margin-top:4px; }
         .tf-my-alerts.has-alerts { color:#9a3412; background:#fff7ed; border-color:#fed7aa; }
         .tf-my-alerts .tf-alert-count {
             display:inline-flex; align-items:center; justify-content:center;
@@ -826,11 +800,9 @@
                 <span class="tf-user-dot"></span>
                 <span id="tfUserBadgeText">Utilisateur : vérification…</span>
             </div>
-            <div class="tf-my-alerts" id="tfMyAlerts" title="Mes tâches actives" role="button" tabindex="0" aria-expanded="false" onclick="togglePersonalAlertsMenu(event)">
+            <div class="tf-my-alerts" id="tfMyAlerts" title="V27 — alertes personnelles">
                 🔔 <span>Mes tâches</span>
                 <span class="tf-alert-count" id="tfMyAlertsCount">0</span>
-                <span class="tf-alert-chevron">▾</span>
-                <div class="tf-my-alert-menu" id="tfPersonalAlertsMenu" aria-hidden="true" onclick="event.stopPropagation()"></div>
             </div>
             <div class="search-box"><input type="text" id="searchInput" placeholder="Rechercher..." oninput="handleSearch(this.value)"></div>
             <div class="filter-dropdown">
@@ -1766,87 +1738,6 @@ let currentUser = {
             return (tasks || []).filter(t =>
                 Number(t.projet) === Number(projectId) && isPersonalAlertTask(t)
             ).length;
-        }
-
-        function renderPersonalAlertsMenu() {
-            const menu = document.getElementById('tfPersonalAlertsMenu');
-            if (!menu) return;
-            if (!currentUser?.eligible) {
-                menu.innerHTML = '<div class="tf-alert-empty">Identité personnelle non disponible pour le moment.</div>';
-                return;
-            }
-            const alertTasks = getPersonalAlertTasks().slice().sort((a, b) => {
-                const da = gristToDate(a.dateEcheance)?.getTime() || Number.MAX_SAFE_INTEGER;
-                const db = gristToDate(b.dateEcheance)?.getTime() || Number.MAX_SAFE_INTEGER;
-                if (da !== db) return da - db;
-                return String(a.titre || '').localeCompare(String(b.titre || ''), 'fr', { sensitivity:'base' });
-            });
-            if (!alertTasks.length) {
-                menu.innerHTML = '<div class="tf-alert-menu-head"><span class="tf-alert-menu-title">Mes tâches</span><span class="tf-alert-menu-subtitle">0 tâche active</span></div><div class="tf-alert-empty">Aucune tâche active ne vous est attribuée.</div>';
-                return;
-            }
-            const items = alertTasks.map(task => {
-                const statusValue = getEffectiveStatusValue(task);
-                const status = TF.getStatus(statusCfg, statusValue) || {};
-                const project = projects.find(p => Number(p.id) === Number(task.projet));
-                const due = gristToDate(task.dateEcheance);
-                const dueLabel = due ? formatDateShort(due) : '';
-                const priority = PRIORITY_LABELS[getPriority(task)] || '';
-                const id = Number(task.id);
-                return `<button type="button" class="tf-alert-item" onclick="openPersonalAlertTask(${id}, event)" title="Ouvrir cette tâche dans le Kanban"><span class="tf-alert-item-icon">🔔</span><span class="tf-alert-item-main"><span class="tf-alert-item-title">${escapeHtml(task.titre || 'Sans titre')}</span><span class="tf-alert-item-meta"><span class="tf-alert-item-status">${escapeHtml(status.label || statusValue || '')}</span>${project ? `<span>• ${escapeHtml(project.nom)}</span>` : ''}${priority ? `<span>• ${escapeHtml(priority)}</span>` : ''}${dueLabel ? `<span class="tf-alert-item-due">📅 ${escapeHtml(dueLabel)}</span>` : ''}</span></span></button>`;
-            }).join('');
-            menu.innerHTML = `<div class="tf-alert-menu-head"><span class="tf-alert-menu-title">Mes tâches à effectuer</span><span class="tf-alert-menu-subtitle">${alertTasks.length} tâche${alertTasks.length > 1 ? 's' : ''}</span></div><div class="tf-alert-menu-list">${items}</div><div class="tf-alert-menu-foot">Cliquez sur une tâche pour l'ouvrir dans le Kanban actuel.</div>`;
-        }
-
-        function positionPersonalAlertsMenu() {
-            const box = document.getElementById('tfMyAlerts');
-            const menu = document.getElementById('tfPersonalAlertsMenu');
-            if (!box || !menu) return;
-            const r = box.getBoundingClientRect();
-            const width = Math.min(360, Math.max(260, window.innerWidth * 0.78));
-            menu.style.width = width + 'px';
-            let left = r.right - width;
-            left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
-            let top = r.bottom + 8;
-            const h = menu.offsetHeight;
-            if (top + h > window.innerHeight - 8 && r.top - h - 8 > 8) top = r.top - h - 8;
-            menu.style.left = left + 'px';
-            menu.style.top = top + 'px';
-        }
-
-        function closePersonalAlertsMenu() {
-            const box = document.getElementById('tfMyAlerts');
-            const menu = document.getElementById('tfPersonalAlertsMenu');
-            if (box) { box.classList.remove('open'); box.setAttribute('aria-expanded','false'); }
-            if (menu) { menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
-        }
-
-        function togglePersonalAlertsMenu(ev) {
-            if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-            const box = document.getElementById('tfMyAlerts');
-            const menu = document.getElementById('tfPersonalAlertsMenu');
-            if (!box || !menu || box.style.display === 'none' || !currentUser?.eligible) return;
-            if (box.classList.contains('open')) { closePersonalAlertsMenu(); return; }
-            renderPersonalAlertsMenu();
-            menu.classList.add('open');
-            box.classList.add('open');
-            box.setAttribute('aria-expanded','true');
-            menu.setAttribute('aria-hidden','false');
-            requestAnimationFrame(positionPersonalAlertsMenu);
-        }
-
-        function openPersonalAlertTask(taskId, ev) {
-            if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-            const id = Number(taskId);
-            if (!Number.isFinite(id)) return;
-            const task = tasks.find(t => Number(t.id) === id);
-            closePersonalAlertsMenu();
-            if (!task) { if (typeof showToast === 'function') showToast('Cette tâche n’est plus disponible dans le Kanban.', 'error'); return; }
-            openTaskPanel(id);
-            setTimeout(() => {
-                const card = document.querySelector(`.task-card[data-id="${id}"]`);
-                if (card) card.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' });
-            }, 100);
         }
 
         function updatePersonalAlertsBadge() {
@@ -3276,18 +3167,6 @@ container.innerHTML = columns.map(col => `
             render();
         }
 
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('#tfMyAlerts')) return;
-            closePersonalAlertsMenu();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePersonalAlertsMenu();
-        });
-        window.addEventListener('resize', () => {
-            const menu = document.getElementById('tfPersonalAlertsMenu');
-            if (menu?.classList.contains('open')) positionPersonalAlertsMenu();
-        });
-
         // Events
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.quick-assignee')) document.querySelectorAll('.quick-assignee.open').forEach(x=>x.classList.remove('open'));
@@ -3399,6 +3278,207 @@ container.innerHTML = columns.map(col => `
   <a href="../calendar/?shell=1" class="mt-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a>
   <a href="../dashboard/?shell=1" class="mt-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Tableau</a>
 </nav>
+
+
+<!-- V30.3 — couche indépendante : menu "Mes tâches" (affichage uniquement) -->
+<style id="tf-v30-3-my-tasks-menu">
+#tfMyTasksMenu {
+  position: fixed;
+  z-index: 100000;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 110px));
+  overflow: auto;
+  display: none;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-dark, #d7dce5);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.18);
+  padding: 8px;
+  box-sizing: border-box;
+}
+#tfMyTasksMenu.open { display: block; }
+#tfMyTasksMenu .tf-v303-head {
+  padding: 8px 10px 7px;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text, #172033);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  margin-bottom: 4px;
+}
+#tfMyTasksMenu .tf-v303-empty {
+  padding: 14px 10px;
+  color: var(--text-muted, #667085);
+  font-size: .76rem;
+}
+#tfMyTasksMenu .tf-v303-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+#tfMyTasksMenu .tf-v303-item:hover { background: var(--surface-2, #f3f5f8); }
+#tfMyTasksMenu .tf-v303-title {
+  font-size: .77rem;
+  line-height: 1.3;
+  font-weight: 650;
+  color: var(--text, #172033);
+}
+#tfMyTasksMenu .tf-v303-meta {
+  margin-top: 4px;
+  font-size: .67rem;
+  line-height: 1.35;
+  color: var(--text-muted, #667085);
+}
+</style>
+<script id="tf-v30-3-my-tasks-menu-script">
+(function () {
+  'use strict';
+
+  function menuEl() {
+    return document.getElementById('tfMyTasksMenu');
+  }
+
+  function taskTitle(t) {
+    return String(t?.titre ?? t?.title ?? t?.nom ?? ('Tâche #' + (t?.id ?? ''))).trim() || ('Tâche #' + (t?.id ?? ''));
+  }
+
+  function taskMeta(t) {
+    const parts = [];
+    try {
+      const st = typeof getStatusConfigEntry === 'function' ? getStatusConfigEntry(t) : null;
+      if (st?.label) parts.push(st.label);
+    } catch (_) {}
+    try {
+      const pn = typeof getProjectName === 'function' ? getProjectName(t?.projet) : '';
+      if (pn) parts.push(pn);
+    } catch (_) {}
+    try {
+      const pr = typeof getPriority === 'function' ? getPriority(t) : null;
+      const labels = {1:'Urgente',2:'Haute',3:'Moyenne',4:'Basse'};
+      if (pr && labels[pr]) parts.push(labels[pr]);
+    } catch (_) {}
+    return parts.join(' · ');
+  }
+
+  function renderMyTasksMenu() {
+    const menu = menuEl();
+    if (!menu) return;
+    const list = Array.isArray(window.personalAlertTasks) ? window.personalAlertTasks :
+                 (typeof personalAlertTasks !== 'undefined' && Array.isArray(personalAlertTasks) ? personalAlertTasks : []);
+    menu.innerHTML = '';
+
+    const head = document.createElement('div');
+    head.className = 'tf-v303-head';
+    head.textContent = 'Mes tâches à effectuer';
+    menu.appendChild(head);
+
+    if (!list.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tf-v303-empty';
+      empty.textContent = 'Aucune tâche active ne vous est attribuée.';
+      menu.appendChild(empty);
+      return;
+    }
+
+    list.forEach(function (t) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'tf-v303-item';
+      item.dataset.taskId = String(t?.id ?? '');
+
+      const title = document.createElement('div');
+      title.className = 'tf-v303-title';
+      title.textContent = taskTitle(t);
+      item.appendChild(title);
+
+      const metaText = taskMeta(t);
+      if (metaText) {
+        const meta = document.createElement('div');
+        meta.className = 'tf-v303-meta';
+        meta.textContent = metaText;
+        item.appendChild(meta);
+      }
+      menu.appendChild(item);
+    });
+  }
+
+  function positionMenu() {
+    const button = document.getElementById('tfMyAlerts');
+    const menu = menuEl();
+    if (!button || !menu) return;
+    const r = button.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.min(r.bottom + 8, window.innerHeight - menu.offsetHeight - 8) + 'px';
+  }
+
+  function closeMenu() {
+    const menu = menuEl();
+    if (menu) menu.classList.remove('open');
+  }
+
+  function toggleMenu() {
+    const menu = menuEl();
+    if (!menu) return;
+    if (menu.classList.contains('open')) {
+      closeMenu();
+      return;
+    }
+    renderMyTasksMenu();
+    menu.classList.add('open');
+    positionMenu();
+  }
+
+  function install() {
+    if (document.getElementById('tfMyTasksMenu')) return;
+
+    const menu = document.createElement('div');
+    menu.id = 'tfMyTasksMenu';
+    menu.setAttribute('role', 'menu');
+    document.body.appendChild(menu);
+
+    const button = document.getElementById('tfMyAlerts');
+    if (!button) return;
+
+    button.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleMenu();
+    }, true);
+
+    menu.addEventListener('click', function (ev) {
+      const item = ev.target.closest('.tf-v303-item');
+      if (!item) return;
+      // V30.3 : pour ce premier test, le clic ne fait encore qu'identifier la tâche.
+      // L'ouverture dans le Kanban sera ajoutée après validation du menu.
+      ev.preventDefault();
+      ev.stopPropagation();
+      item.blur();
+    });
+
+    document.addEventListener('click', function (ev) {
+      if (!menu.contains(ev.target) && ev.target !== button && !button.contains(ev.target)) closeMenu();
+    }, true);
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') closeMenu();
+    });
+    window.addEventListener('resize', function () {
+      if (menu.classList.contains('open')) positionMenu();
+    });
+    window.addEventListener('scroll', function () {
+      if (menu.classList.contains('open')) positionMenu();
+    }, true);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
+  else install();
+})();
+</script>
+
 </body>
 </html>
 <style id="taskflow-v5-progress-cleanup">
