@@ -1513,6 +1513,8 @@
         
         function getFilteredTasks() {
             return tasks.filter(t => {
+                // Les modèles récurrents sont des gabarits : ne pas les afficher comme événements du calendrier.
+                if (t.isRecurringModel === true || t.isRecurringModel === 1) return false;
                 // #9 filtre de niveau (orthogonal) : Actions = feuilles, Syntheses = parents.
                 if (workLevel === 'actions') { if (hasChildren(t)) return false; }
                 else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
