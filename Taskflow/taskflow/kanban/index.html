@@ -182,7 +182,6 @@
         .card-title { font-weight: 500; font-size: 0.85rem; flex: 1; }
         .card-type { font-size: 0.75rem; }
         .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-muted); }
-        .card-recurrence { display:inline-flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:700; color:var(--primary); cursor:help; }
         .card-project { display: flex; align-items: center; gap: 3px; }
         .card-deps { display: flex; align-items: center; gap: 2px; }
         .card-subs { display: inline-flex; align-items: center; gap: 2px; font-size: 0.7rem; color: var(--text-muted); }
@@ -2047,7 +2046,6 @@ let currentUser = {
         }
         function getFilteredTasks() {
             return tasks.filter(t => {
-                // Les modèles récurrents servent de gabarits : ils ne doivent pas encombrer le Kanban.
                 // #9 filtre de niveau (orthogonal a la hierarchie) : Actions = feuilles, Syntheses = parents.
                 if (workLevel === 'actions') { if (hasChildren(t)) return false; }
                 else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
@@ -2361,23 +2359,19 @@ container.innerHTML = columns.map(col => `
             const isChild = !!t.parentTask;
             const barColor = getTaskColor(t);
             const prog = t.progression || 0;
-            // Dans les cartes Kanban, conserver uniquement la date d’échéance.
-            // Les deux dates sont modifiables dans le panneau de configuration.
             let dueHtml = '';
             if (t.dateEcheance && t.type !== 'jalon') {
                 const _e = gristToDate(t.dateEcheance);
-                const _MO = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
-                const _fmt = d => d ? `${d.getDate()} ${_MO[d.getMonth()]}` : '';
-                const _t0 = new Date(); _t0.setHours(0,0,0,0);
-                const _d = new Date(_e); _d.setHours(0,0,0,0);
-                const _days = Math.round((_d - _t0) / 86400000);
-                const _done = TF.isTerminal(statusCfg, getEffectiveStatusValue(t));
-                const _st = _done ? '' : _days < 0 ? 'over' : _days <= 2 ? 'soon' : '';
-                dueHtml = `<span class="tf-due ${_st}" title="Date d’échéance">${_fmt(_e)}</span>`;
+                if (_e) {
+                    const _t0 = new Date(); _t0.setHours(0,0,0,0);
+                    const _d = new Date(_e); _d.setHours(0,0,0,0);
+                    const _days = Math.round((_d - _t0) / 86400000);
+                    const _done = TF.isTerminal(statusCfg, getEffectiveStatusValue(t));
+                    const _st = _done ? '' : _days < 0 ? 'over' : _days <= 2 ? 'soon' : '';
+                    const _MO = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
+                    dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
+                }
             }
-            const recurrenceHtml = t.recurrenceFreq
-                ? `<span class="card-recurrence" title="Modèle de récurrence : ${escapeHtml(String(t.recurrenceFreq))}" aria-label="Récurrence ${escapeHtml(String(t.recurrenceFreq))}">↻</span>`
-                : '';
             const children = showSubtasks && !isChild ? getChildren(t.id) : [];
             return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
@@ -2389,10 +2383,9 @@ container.innerHTML = columns.map(col => `
                     <span class="tf-badge tf-p${p}">${PRIORITY_LABELS[p]}</span>
                     ${projectName ? `<span class="card-project"><span style="color:${projectColor}">●</span> ${escapeHtml(projectName)}</span>` : ''}
                     ${deps.length ? `<span class="card-deps">← ${deps.length}</span>` : ''}
-                    ${dueHtml}
-                    ${recurrenceHtml}
                     ${subs.length ? `<span class="card-subs${subsDone === subs.length ? ' complete' : ''}" title="Checklist">◎ ${subsDone}/${subs.length}</span>` : ''}
                     ${nChildren ? `<span class="card-subs" title="Sous-tâches (hiérarchie)">↳ ${nChildren}</span>` : ''}
+                    ${dueHtml}
                 </div>
                 ${t.type !== 'jalon' ? `<div class="card-progress-row"><div class="card-progress" onclick="event.stopPropagation();setCardProgress(event, ${t.id})"><div class="card-progress-fill p${p}" style="width:${prog}%"></div></div><span class="card-progress-pct">${prog}%</span></div>` : ''}
                 ${assignees.length ? `<div class="card-assignees">${assignees.slice(0, 3).map(id => `<div class="card-avatar" style="background:${getTeamMemberColor(id)}" title="${escapeHtml(getTeamMemberName(id))}">${getInitials(getTeamMemberName(id))}</div>`).join('')}${assignees.length > 3 ? `<div class="card-avatar more">+${assignees.length - 3}</div>` : ''}</div>` : ''}
@@ -2479,7 +2472,7 @@ container.innerHTML = columns.map(col => `
 
             panelState = {
                 open: true, isNew: true, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: colKey,
-                editData: { titre: '', description: '', type: 'tache', priorite: preset.priorite || '3', statut: preset.statut || 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), recurrenceFreq: null, projet: preset.projet !== undefined ? preset.projet : (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: null, charges: [] }
+                editData: { titre: '', description: '', type: 'tache', priorite: preset.priorite || '3', statut: preset.statut || 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: preset.projet !== undefined ? preset.projet : (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: null, charges: [], recurrenceFreq: '', recurrenceStart: null, recurrenceEnd: null }
             };
             renderPanelTask();
             openPanel();
@@ -2492,7 +2485,7 @@ container.innerHTML = columns.map(col => `
             const parent = parentId ? tasks.find(t => t.id === parentId) : null;
             panelState = {
                 open: true, isNew: true, floating: false, taskId: null, taskIndex: -1, columnTasks: [], columnKey: null,
-                editData: { titre: '', description: '', type: 'tache', priorite: '3', statut: parent ? getEffectiveStatusValue(parent) : 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), recurrenceFreq: null, projet: parent?.projet || (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: parentId || null, charges: [] }
+                editData: { titre: '', description: '', type: 'tache', priorite: '3', statut: parent ? getEffectiveStatusValue(parent) : 'todo', progression: 0, dateDebut: dateToGrist(today), dateEcheance: dateToGrist(addDays(today, 7)), projet: parent?.projet || (projects.length > 0 ? projects[0].id : null), assignees: [], dependDe: [], tags: [], estimationH: null, tempsPasse: null, subtasks: [], couleur: null, parentTask: parentId || null, charges: [], recurrenceFreq: '', recurrenceStart: null, recurrenceEnd: null }
             };
             renderPanelTask();
             openPanel();
@@ -2598,7 +2591,7 @@ container.innerHTML = columns.map(col => `
             updateField('parentTask', newParentId);
         }
 
-        function cloneTaskData(task) { return { titre: task.titre || '', description: task.description || '', type: task.type || 'tache', priorite: String(task.priorite || '3'), statut: getEffectiveStatusValue(task), progression: task.progression || 0, dateDebut: task.dateDebut, dateEcheance: task.dateEcheance, recurrenceFreq: task.recurrenceFreq || null, projet: task.projet || null, assignees: getAssignees(task), dependDe: getDependsOn(task), tags: getTags(task), estimationH: task.estimationH || null, tempsPasse: task.tempsPasse || null, subtasks: getSubtasks(task), couleur: task.couleur || null, parentTask: task.parentTask || null, charges: TF.parseCharges(task.charges), dateCloture: task.dateCloture || null }; }
+        function cloneTaskData(task) { return { titre: task.titre || '', description: task.description || '', type: task.type || 'tache', priorite: String(task.priorite || '3'), statut: getEffectiveStatusValue(task), progression: task.progression || 0, dateDebut: task.dateDebut, dateEcheance: task.dateEcheance, projet: task.projet || null, assignees: getAssignees(task), dependDe: getDependsOn(task), tags: getTags(task), estimationH: task.estimationH || null, tempsPasse: task.tempsPasse || null, subtasks: getSubtasks(task), couleur: task.couleur || null, parentTask: task.parentTask || null, charges: TF.parseCharges(task.charges), dateCloture: task.dateCloture || null, recurrenceFreq: task.recurrenceFreq || '', recurrenceStart: task.recurrenceStart || null, recurrenceEnd: task.recurrenceEnd || null }; }
         
         // FIX: Synchroniser editData vers le task local dans tasks[]
         function syncLocalTask() {
@@ -2614,7 +2607,6 @@ container.innerHTML = columns.map(col => `
             task.progression = data.progression;
             task.dateDebut = data.dateDebut;
             task.dateEcheance = data.dateEcheance;
-            task.recurrenceFreq = data.recurrenceFreq || null;
             task.projet = data.projet;
             task.assignees = ['L', ...data.assignees];
             task.dependDe = ['L', ...data.dependDe];
@@ -2624,6 +2616,9 @@ container.innerHTML = columns.map(col => `
             task.subtasks = subtasksToJson(data.subtasks);
             task.couleur = data.couleur || null;
             task.parentTask = data.parentTask || null;
+            task.recurrenceFreq = data.recurrenceFreq || '';
+            task.recurrenceStart = data.recurrenceStart || null;
+            task.recurrenceEnd = data.recurrenceEnd || null;
             task.charges = TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId)));
         }
 
@@ -2749,13 +2744,25 @@ container.innerHTML = columns.map(col => `
                         <button type="button" class="panel-quick-btn" onclick="toggleQuickAssignees(event)">👤 ${data.assignees.length ? `${data.assignees.length} ${data.assignees.length > 1 ? 'assignés' : 'assigné'}` : 'Assigné'}⌄</button>
                         <div class="quick-assignee-menu">${assigneesOptions || '<div style="padding:8px;font-size:.75rem;color:var(--text-muted)">Aucun membre</div>'}</div>
                     </div>
-                    <label class="panel-quick-date" title="Date de début"><input type="date" value="${formatDateInput(s)}" onchange="updateField('dateDebut', this.value)" aria-label="Date de début"></label>
-                    <label class="panel-quick-date" title="Date d’échéance"><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)" aria-label="Date d’échéance"></label>
+                    <label class="panel-quick-date" title="Date butoir"><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)" aria-label="Date butoir"></label>
 
                 </div>
                 <div class="panel-type-row panel-quick-type">
                     <span class="type-pill ${data.type === 'tache' ? 'selected' : ''}" onclick="updateField('type','tache')">Tâche</span><span class="type-pill ${data.type === 'jalon' ? 'selected' : ''}" onclick="updateField('type','jalon')">◆ Jalon</span><span class="type-pill ${data.type === 'reunion' ? 'selected' : ''}" onclick="updateField('type','reunion')">Réunion</span>
                 </div>
+                ${!data.parentTask && data.type === 'tache' ? `
+                <div class="panel-section" style="margin:10px 0 12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)">
+                    <label style="display:flex;align-items:center;gap:9px;font-weight:650;font-size:.84rem;cursor:pointer">
+                        <input type="checkbox" ${data.recurrenceFreq ? 'checked' : ''} onchange="updateField('recurrenceFreq', this.checked ? (panelState.editData.recurrenceFreq || 'Hebdomadaire') : '')" style="width:16px;height:16px;accent-color:var(--primary)">
+                        ↻ Tâche récurrente
+                    </label>
+                    ${data.recurrenceFreq ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px">
+                        <label style="font-size:.72rem;color:var(--text-muted)">Fréquence<select class="form-select" style="width:100%;margin-top:4px" onchange="updateField('recurrenceFreq',this.value)"><option value="Hebdomadaire" ${data.recurrenceFreq==='Hebdomadaire'?'selected':''}>Hebdomadaire</option><option value="Mensuelle" ${data.recurrenceFreq==='Mensuelle'?'selected':''}>Mensuelle</option><option value="Annuelle" ${data.recurrenceFreq==='Annuelle'?'selected':''}>Annuelle</option></select></label>
+                        <span style="font-size:.7rem;color:var(--text-muted);align-self:end;padding-bottom:7px">Les sous-tâches seront créées automatiquement.</span>
+                        <label style="font-size:.72rem;color:var(--text-muted)">Début de la période<input type="date" style="display:block;width:100%;margin-top:4px" value="${formatDateInput(gristToDate(data.recurrenceStart))}" onchange="updateField('recurrenceStart',this.value)"></label>
+                        <label style="font-size:.72rem;color:var(--text-muted)">Fin de la période<input type="date" style="display:block;width:100%;margin-top:4px" value="${formatDateInput(gristToDate(data.recurrenceEnd))}" onchange="updateField('recurrenceEnd',this.value)"></label>
+                    </div>` : ''}
+                </div>` : ''}
                 <div class="props-list">
                     <div class="prop-row pr-status">
                         <span class="prop-label">Statut</span>
@@ -2779,16 +2786,6 @@ container.innerHTML = columns.map(col => `
                             ? `<div class="dates-inline"><input type="date" value="${formatDateInput(s)}" onchange="updateField('dateDebut', this.value); updateField('dateEcheance', this.value)"><button class="today-btn" onclick="setTodayDate()">Auj.</button></div>`
                             : `<div class="dates-inline"><input type="date" value="${formatDateInput(s)}" onchange="updateField('dateDebut', this.value)"><span class="dates-arrow">→</span><input type="date" value="${formatDateInput(e)}" onchange="updateField('dateEcheance', this.value)"><button class="today-btn" onclick="setTodayDate()">Auj.</button></div>`
                         }</div>
-                    </div>
-                    <div class="prop-row pr-recurrence">
-                        <span class="prop-label">Récurrence</span>
-                        <div class="prop-value" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                            <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer">
-                                <input type="checkbox" ${data.recurrenceFreq ? 'checked' : ''} onchange="updateField('recurrenceFreq', this.checked ? (panelState.editData.recurrenceFreq || 'Hebdomadaire') : null)" aria-label="Activer la récurrence">
-                                <span>Répéter cette tâche</span>
-                            </label>
-                            ${data.recurrenceFreq ? `<select class="form-select" style="max-width:190px" aria-label="Fréquence de récurrence" onchange="updateField('recurrenceFreq', this.value)"><option value="Hebdomadaire" ${data.recurrenceFreq === 'Hebdomadaire' ? 'selected' : ''}>Hebdomadaire</option><option value="Mensuelle" ${data.recurrenceFreq === 'Mensuelle' ? 'selected' : ''}>Mensuelle</option><option value="Annuelle" ${data.recurrenceFreq === 'Annuelle' ? 'selected' : ''}>Annuelle</option></select>` : ''}
-                        </div>
                     </div>
                     <div class="prop-row pr-project">
                         <span class="prop-label">Projet</span>
@@ -2957,7 +2954,7 @@ container.innerHTML = columns.map(col => `
             const data = panelState.editData;
             if (!data) return;
             // BUG-01 FIX: Utiliser parseInputDate pour éviter problèmes de timezone
-            if (field === 'dateDebut' || field === 'dateEcheance') value = value ? dateToGrist(parseInputDate(value)) : null;
+            if (field === 'dateDebut' || field === 'dateEcheance' || field === 'recurrenceStart' || field === 'recurrenceEnd') value = value ? dateToGrist(parseInputDate(value)) : null;
             // V24 : le statut d'une sous-tâche est imposé par sa tâche principale.
             let propagateStatus = false;
             if (field === 'statut') {
@@ -2978,7 +2975,7 @@ container.innerHTML = columns.map(col => `
             // Synchroniser le task local pour affichage immédiat
             syncLocalTask();
             
-            const visualFields = ['type', 'priorite', 'statut', 'projet', 'progression', 'couleur', 'parentTask', 'recurrenceFreq'];
+            const visualFields = ['type', 'priorite', 'statut', 'projet', 'progression', 'couleur', 'parentTask', 'recurrenceFreq', 'recurrenceStart', 'recurrenceEnd'];
             if (visualFields.includes(field)) { renderPanelTask(); if (!panelState.isNew) render(); }
             if (field === 'titre' && panelState.isNew) { const btn = document.querySelector('.panel-footer .panel-btn.success'); if (btn) btn.disabled = !value || !value.trim(); }
             if (!panelState.isNew && !noSave && gristReady) saveTaskToGrist({ propagateStatus });
@@ -3142,6 +3139,48 @@ container.innerHTML = columns.map(col => `
             if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
         }
 
+        // Récurrence : crée les sous-tâches d'occurrence sans doublons.
+        // Les dates de période sont inclusives. Les occurrences sont identifiées par leur suffixe ISO.
+        function recurrenceDates(task) {
+            const freq = task?.recurrenceFreq;
+            const start = gristToDate(task?.recurrenceStart), end = gristToDate(task?.recurrenceEnd);
+            if (!freq || !start || !end || start > end) return [];
+            const dates = [];
+            const day0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+            let d = new Date(day0);
+            for (let guard = 0; d <= last && guard < 500; guard++) {
+                dates.push(new Date(d));
+                if (freq === 'Hebdomadaire') d.setDate(d.getDate() + 7);
+                else if (freq === 'Mensuelle') { const day = day0.getDate(); const next = new Date(d.getFullYear(), d.getMonth() + 1, 1); next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); d = next; }
+                else if (freq === 'Annuelle') { const month = day0.getMonth(), day = day0.getDate(); const next = new Date(d.getFullYear() + 1, month, 1); next.setDate(Math.min(day, new Date(next.getFullYear(), month + 1, 0).getDate())); d = next; }
+                else return [];
+            }
+            return dates;
+        }
+        async function ensureRecurrenceChildren(task) {
+            if (!gristReady || !task || task.parentTask || !task.recurrenceFreq) return;
+            const dates = recurrenceDates(task);
+            if (!dates.length) return;
+            const duration = Math.max(0, Math.round(((gristToDate(task.dateEcheance) || gristToDate(task.dateDebut) || new Date()) - (gristToDate(task.dateDebut) || gristToDate(task.dateEcheance) || new Date())) / 86400000));
+            const existing = tasks.filter(t => Number(t.parentTask) === Number(task.id) && /^↻ .* \(\d{4}-\d{2}-\d{2}\)$/.test(t.titre || ''));
+            const byDate = new Map(existing.map(t => [((t.titre || '').match(/\((\d{4}-\d{2}-\d{2})\)$/) || [])[1], t]));
+            const actions = [];
+            for (const d of dates) {
+                const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                const due = new Date(d); due.setDate(due.getDate() + duration);
+                const title = `↻ ${task.titre || 'Tâche récurrente'} (${iso})`;
+                const record = pruneTaskRecord({ titre: title, description: task.description || '', type: 'tache', priorite: String(task.priorite || '3'), statut: normalizeStatusValue(task.statut || 'todo'), progression: 0, dateDebut: dateToGrist(d), dateEcheance: dateToGrist(due), projet: task.projet || null, assignees: toGristRefList(getAssignees(task)), dependDe: [], tags: toGristChoiceList(getTags(task)), estimationH: task.estimationH || null, tempsPasse: null, subtasks: '[]', couleur: task.couleur || null, parentTask: task.id });
+                const old = byDate.get(iso);
+                if (!old) actions.push(['AddRecord','Tasks',null,record]);
+                else if (old.titre !== title || Number(old.dateDebut) !== Number(record.dateDebut) || Number(old.dateEcheance) !== Number(record.dateEcheance)) actions.push(['UpdateRecord','Tasks',old.id,{titre:title,dateDebut:record.dateDebut,dateEcheance:record.dateEcheance,description:record.description}]);
+            }
+            if (actions.length) {
+                await grist.docApi.applyUserActions(actions);
+                const raw = await grist.docApi.fetchTable('Tasks'); tasks = convertGristToRecords(raw); TASK_COLS = new Set(Object.keys(raw || {})); rebuildChildrenCache(); render();
+            }
+        }
+
         // ═══════════════════════════════════════════════════════════════════════
         // CRUD
         // ═══════════════════════════════════════════════════════════════════════
@@ -3153,7 +3192,7 @@ container.innerHTML = columns.map(col => `
             if (currentTask && hasParentRef(currentTask)) data.statut = getEffectiveStatusValue(currentTask);
             else data.statut = normalizeStatusValue(data.statut);
             syncLocalTask();
-            const record = { titre: data.titre, description: data.description, type: data.type, priorite: data.priorite, statut: data.statut, progression: data.progression, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, recurrenceFreq: data.recurrenceFreq || null, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null };
+            const record = { titre: data.titre, description: data.description, type: data.type, priorite: data.priorite, statut: data.statut, progression: data.progression, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null, recurrenceFreq: data.recurrenceFreq || '', recurrenceStart: data.recurrenceStart || null, recurrenceEnd: data.recurrenceEnd || null };
             try {
                 const actions = [['UpdateRecord', 'Tasks', panelState.taskId, pruneTaskRecord(record)]];
                 if (options.propagateStatus && currentTask && isRoot(currentTask)) {
@@ -3163,7 +3202,7 @@ container.innerHTML = columns.map(col => `
                 await grist.docApi.applyUserActions(actions);
                 showSaveIndicator();
                 // Garder le cache cohérent immédiatement, sans attendre l'événement Grist.
-                if (currentTask) { currentTask.statut = data.statut; for (const child of getAllDescendants(currentTask.id)) child.statut = data.statut; }
+                if (currentTask) { currentTask.statut = data.statut; currentTask.recurrenceFreq = data.recurrenceFreq || ''; currentTask.recurrenceStart = data.recurrenceStart || null; currentTask.recurrenceEnd = data.recurrenceEnd || null; for (const child of getAllDescendants(currentTask.id)) child.statut = data.statut; if (!currentTask.parentTask) { await ensureRecurrenceChildren(currentTask); } }
             } catch (e) { showToast('Erreur sauvegarde', 'error'); }
         }
 
@@ -3171,9 +3210,9 @@ container.innerHTML = columns.map(col => `
             const data = panelState.editData;
             if (!data || !data.titre?.trim()) { showToast('Titre requis', 'error'); return; }
             if (data.dateDebut && data.dateEcheance && data.dateDebut > data.dateEcheance) { showToast('La date de début ne peut pas dépasser la date de fin', 'error'); return; }
-            const record = { titre: data.titre, description: data.description || '', type: data.type || 'tache', priorite: data.priorite || '3', statut: normalizeStatusValue(data.statut || 'todo'), progression: data.progression || 0, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, recurrenceFreq: data.recurrenceFreq || null, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null };
+            const record = { titre: data.titre, description: data.description || '', type: data.type || 'tache', priorite: data.priorite || '3', statut: normalizeStatusValue(data.statut || 'todo'), progression: data.progression || 0, dateDebut: data.dateDebut, dateEcheance: data.dateEcheance, projet: data.projet, assignees: toGristRefList(data.assignees), dependDe: toGristRefList(data.dependDe), tags: toGristChoiceList(data.tags), estimationH: data.estimationH, tempsPasse: data.tempsPasse, subtasks: subtasksToJson(data.subtasks), couleur: data.couleur || null, parentTask: data.parentTask || null, charges: TF.chargesToJson((data.charges || []).filter(c => data.assignees.includes(c.teamId))), dateCloture: data.dateCloture || null, recurrenceFreq: data.recurrenceFreq || '', recurrenceStart: data.recurrenceStart || null, recurrenceEnd: data.recurrenceEnd || null };
             if (gristReady) {
-                try { await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, pruneTaskRecord(record)]]); showToast('Créée', 'success'); await loadAllData(); closePanel(); } catch (e) { showToast('Erreur création', 'error'); }
+                try { await grist.docApi.applyUserActions([['AddRecord', 'Tasks', null, pruneTaskRecord(record)]]); await loadAllData(); const created = tasks.filter(t => t.titre === record.titre && !t.parentTask).sort((a,b)=>Number(b.id)-Number(a.id))[0]; if (created) await ensureRecurrenceChildren(created); await loadAllData(); showToast('Créée', 'success'); closePanel(); } catch (e) { showToast('Erreur création', 'error'); }
             } else { record.id = Date.now(); tasks.push(record); showToast('Créée', 'success'); render(); closePanel(); }
         }
 
