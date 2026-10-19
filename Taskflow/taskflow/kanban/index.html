@@ -3139,22 +3139,40 @@ container.innerHTML = columns.map(col => `
             if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
         }
 
-        // Récurrence : crée les sous-tâches d'occurrence sans doublons.
-        // Les dates de période sont inclusives. Les occurrences sont identifiées par leur suffixe ISO.
+        // Récurrence : une occurrence = une seule journée ouvrable (week-ends reportés au lundi).
+        // La période est inclusive. Les jours fériés ne sont pas traités spécialement.
         function recurrenceDates(task) {
             const freq = task?.recurrenceFreq;
             const start = gristToDate(task?.recurrenceStart), end = gristToDate(task?.recurrenceEnd);
-            if (!freq || !start || !end || start > end) return [];
-            const dates = [];
-            const day0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-            const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-            let d = new Date(day0);
-            for (let guard = 0; d <= last && guard < 500; guard++) {
-                dates.push(new Date(d));
-                if (freq === 'Hebdomadaire') d.setDate(d.getDate() + 7);
-                else if (freq === 'Mensuelle') { const day = day0.getDate(); const next = new Date(d.getFullYear(), d.getMonth() + 1, 1); next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate())); d = next; }
-                else if (freq === 'Annuelle') { const month = day0.getMonth(), day = day0.getDate(); const next = new Date(d.getFullYear() + 1, month, 1); next.setDate(Math.min(day, new Date(next.getFullYear(), month + 1, 0).getDate())); d = next; }
-                else return [];
+            if (!freq || !start || !end) return [];
+            const anchor = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12);
+            const last = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 12);
+            if (anchor > last) return [];
+            const dates = [], seen = new Set();
+            const shiftWeekend = (source) => {
+                const d = new Date(source.getFullYear(), source.getMonth(), source.getDate(), 12);
+                if (d.getDay() === 6) d.setDate(d.getDate() + 2); // samedi -> lundi
+                else if (d.getDay() === 0) d.setDate(d.getDate() + 1); // dimanche -> lundi
+                return d;
+            };
+            let cursor = new Date(anchor);
+            for (let guard = 0; cursor <= last && guard < 500; guard++) {
+                const occurrence = shiftWeekend(cursor);
+                const key = `${occurrence.getFullYear()}-${String(occurrence.getMonth()+1).padStart(2,'0')}-${String(occurrence.getDate()).padStart(2,'0')}`;
+                if (!seen.has(key)) { dates.push(occurrence); seen.add(key); }
+                if (freq === 'Hebdomadaire') {
+                    cursor.setDate(cursor.getDate() + 7);
+                } else if (freq === 'Mensuelle') {
+                    const day = anchor.getDate();
+                    const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1, 12);
+                    next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+                    cursor = next;
+                } else if (freq === 'Annuelle') {
+                    const month = anchor.getMonth(), day = anchor.getDate();
+                    const next = new Date(cursor.getFullYear() + 1, month, 1, 12);
+                    next.setDate(Math.min(day, new Date(next.getFullYear(), month + 1, 0).getDate()));
+                    cursor = next;
+                } else return [];
             }
             return dates;
         }
@@ -3162,15 +3180,14 @@ container.innerHTML = columns.map(col => `
             if (!gristReady || !task || task.parentTask || !task.recurrenceFreq) return;
             const dates = recurrenceDates(task);
             if (!dates.length) return;
-            const duration = Math.max(0, Math.round(((gristToDate(task.dateEcheance) || gristToDate(task.dateDebut) || new Date()) - (gristToDate(task.dateDebut) || gristToDate(task.dateEcheance) || new Date())) / 86400000));
             const existing = tasks.filter(t => Number(t.parentTask) === Number(task.id) && /^↻ .* \(\d{4}-\d{2}-\d{2}\)$/.test(t.titre || ''));
             const byDate = new Map(existing.map(t => [((t.titre || '').match(/\((\d{4}-\d{2}-\d{2})\)$/) || [])[1], t]));
             const actions = [];
             for (const d of dates) {
                 const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                const due = new Date(d); due.setDate(due.getDate() + duration);
                 const title = `↻ ${task.titre || 'Tâche récurrente'} (${iso})`;
-                const record = pruneTaskRecord({ titre: title, description: task.description || '', type: 'tache', priorite: String(task.priorite || '3'), statut: normalizeStatusValue(task.statut || 'todo'), progression: 0, dateDebut: dateToGrist(d), dateEcheance: dateToGrist(due), projet: task.projet || null, assignees: toGristRefList(getAssignees(task)), dependDe: [], tags: toGristChoiceList(getTags(task)), estimationH: task.estimationH || null, tempsPasse: null, subtasks: '[]', couleur: task.couleur || null, parentTask: task.id });
+                const oneDay = dateToGrist(d);
+                const record = pruneTaskRecord({ titre: title, description: task.description || '', type: 'tache', priorite: String(task.priorite || '3'), statut: normalizeStatusValue(task.statut || 'todo'), progression: 0, dateDebut: oneDay, dateEcheance: oneDay, projet: task.projet || null, assignees: toGristRefList(getAssignees(task)), dependDe: [], tags: toGristChoiceList(getTags(task)), estimationH: task.estimationH || null, tempsPasse: null, subtasks: '[]', couleur: task.couleur || null, parentTask: task.id });
                 const old = byDate.get(iso);
                 if (!old) actions.push(['AddRecord','Tasks',null,record]);
                 else if (old.titre !== title || Number(old.dateDebut) !== Number(record.dateDebut) || Number(old.dateEcheance) !== Number(record.dateEcheance)) actions.push(['UpdateRecord','Tasks',old.id,{titre:title,dateDebut:record.dateDebut,dateEcheance:record.dateEcheance,description:record.description}]);
