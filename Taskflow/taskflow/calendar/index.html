@@ -1513,12 +1513,33 @@
         
         function getFilteredTasks() {
             return tasks.filter(t => {
-                // Les modèles récurrents sont des gabarits : ne pas les afficher comme événements du calendrier.
-                if (t.isRecurringModel === true || t.isRecurringModel === 1 || !!t.recurrenceFreq) return false;
-                // #9 filtre de niveau (orthogonal) : Actions = feuilles, Syntheses = parents.
-                if (workLevel === 'actions') { if (hasChildren(t)) return false; }
-                else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
-                else if (!showSubtasks && t.parentTask) return false;  // WBS-03 (niveau 'all')
+                // Les modèles récurrents ne s'affichent pas dans le calendrier : seules leurs occurrences (sous-tâches) sont visibles.
+                if (t.isRecurringModel || t.recurrenceFreq) return false;
+                let isRecurrenceOccurrence = false;
+                if (t.parentTask) {
+                    const parent = tasks.find(x => Number(x.id) === Number(t.parentTask));
+                    const match = (t.titre || '').match(/^↻ .* \((\d{4}-\d{2}-\d{2})\)$/);
+                    if (match) {
+                        // Une occurrence générée est masquée si la récurrence a été désactivée ou si sa date n'est plus dans le calendrier prévu.
+                        if (!parent || !(parent.isRecurringModel || parent.recurrenceFreq)) return false;
+                        const start = parent.recurrenceStart ? new Date(parent.recurrenceStart * 1000) : null;
+                        const end = parent.recurrenceEnd ? new Date(parent.recurrenceEnd * 1000) : null;
+                        const occ = new Date(match[1] + 'T12:00:00');
+                        if (!start || !end || occ < new Date(start.getFullYear(),start.getMonth(),start.getDate()) || occ > new Date(end.getFullYear(),end.getMonth(),end.getDate())) return false;
+                        const freq = parent.recurrenceFreq;
+                        if (freq === 'Hebdomadaire') { const days = Math.round((occ - new Date(start.getFullYear(),start.getMonth(),start.getDate())) / 86400000); if (days < 0 || days % 7 !== 0) return false; }
+                        else if (freq === 'Mensuelle') { if (occ.getDate() !== start.getDate() && occ.getDate() !== new Date(occ.getFullYear(),occ.getMonth()+1,0).getDate()) return false; }
+                        else if (freq === 'Annuelle') { if (occ.getMonth() !== start.getMonth() || (occ.getDate() !== start.getDate() && occ.getDate() !== new Date(occ.getFullYear(),occ.getMonth()+1,0).getDate())) return false; }
+                        else return false;
+                        isRecurrenceOccurrence = true;
+                    } else if (parent && (parent.isRecurringModel || parent.recurrenceFreq)) return false;
+                }
+                // Les occurrences récurrentes restent visibles même si l'affichage des sous-tâches ordinaires est désactivé.
+                if (!isRecurrenceOccurrence) {
+                    if (workLevel === 'actions') { if (hasChildren(t)) return false; }
+                    else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
+                    else if (!showSubtasks && t.parentTask) return false;  // WBS-03 (niveau 'all')
+                }
                 if (filters.project.length && !filters.project.includes(t.projet)) return false;
                 if (filters.priority.length && !filters.priority.includes(getPriority(t))) return false;
                 if (filters.assignee.length && !getAssignees(t).some(a => filters.assignee.includes(a))) return false;
