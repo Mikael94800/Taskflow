@@ -182,6 +182,7 @@
         .card-title { font-weight: 500; font-size: 0.85rem; flex: 1; }
         .card-type { font-size: 0.75rem; }
         .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-muted); }
+        .card-recurrence { display:inline-flex; align-items:center; justify-content:center; font-size:.85rem; font-weight:700; color:var(--primary); cursor:help; }
         .card-project { display: flex; align-items: center; gap: 3px; }
         .card-deps { display: flex; align-items: center; gap: 2px; }
         .card-subs { display: inline-flex; align-items: center; gap: 2px; font-size: 0.7rem; color: var(--text-muted); }
@@ -2046,6 +2047,8 @@ let currentUser = {
         }
         function getFilteredTasks() {
             return tasks.filter(t => {
+                // Les modèles récurrents servent de gabarits : ils ne doivent pas encombrer le Kanban.
+                if (t.isRecurringModel === true || t.isRecurringModel === 1) return false;
                 // #9 filtre de niveau (orthogonal a la hierarchie) : Actions = feuilles, Syntheses = parents.
                 if (workLevel === 'actions') { if (hasChildren(t)) return false; }
                 else if (workLevel === 'parents') { if (!hasChildren(t)) return false; }
@@ -2360,18 +2363,25 @@ container.innerHTML = columns.map(col => `
             const barColor = getTaskColor(t);
             const prog = t.progression || 0;
             let dueHtml = '';
-            if (t.dateEcheance && t.type !== 'jalon') {
-                const _e = gristToDate(t.dateEcheance);
+            if (t.type !== 'jalon' && (t.dateDebut || t.dateEcheance)) {
+                const _s = t.dateDebut ? gristToDate(t.dateDebut) : null;
+                const _e = t.dateEcheance ? gristToDate(t.dateEcheance) : null;
+                const _MO = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
+                const _fmt = d => d ? `${d.getDate()} ${_MO[d.getMonth()]}` : '';
+                let _st = '';
                 if (_e) {
                     const _t0 = new Date(); _t0.setHours(0,0,0,0);
                     const _d = new Date(_e); _d.setHours(0,0,0,0);
                     const _days = Math.round((_d - _t0) / 86400000);
                     const _done = TF.isTerminal(statusCfg, getEffectiveStatusValue(t));
-                    const _st = _done ? '' : _days < 0 ? 'over' : _days <= 2 ? 'soon' : '';
-                    const _MO = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
-                    dueHtml = `<span class="tf-due ${_st}">${_d.getDate()} ${_MO[_d.getMonth()]}</span>`;
+                    _st = _done ? '' : _days < 0 ? 'over' : _days <= 2 ? 'soon' : '';
                 }
+                const _dates = _s && _e ? `${_fmt(_s)} → ${_fmt(_e)}` : _fmt(_s || _e);
+                dueHtml = `<span class="tf-due ${_st}" title="Date de début et date d’échéance">${_dates}</span>`;
             }
+            const recurrenceHtml = t.recurrenceFreq
+                ? `<span class="card-recurrence" title="Modèle de récurrence : ${escapeHtml(String(t.recurrenceFreq))}" aria-label="Récurrence ${escapeHtml(String(t.recurrenceFreq))}">↻</span>`
+                : '';
             const children = showSubtasks && !isChild ? getChildren(t.id) : [];
             return `<div class="task-card p${p} ${TF.isTerminal(statusCfg, getEffectiveStatusValue(t)) ? 'done' : ''} ${t.id === selectedTaskId ? 'selected' : ''}" data-id="${t.id}" style="border-left-color:${barColor}" onclick="handleTaskCardClick(event, ${t.id})">
                 <div class="card-header">
@@ -2383,6 +2393,8 @@ container.innerHTML = columns.map(col => `
                     <span class="tf-badge tf-p${p}">${PRIORITY_LABELS[p]}</span>
                     ${projectName ? `<span class="card-project"><span style="color:${projectColor}">●</span> ${escapeHtml(projectName)}</span>` : ''}
                     ${deps.length ? `<span class="card-deps">← ${deps.length}</span>` : ''}
+                    ${dueHtml}
+                    ${recurrenceHtml}
                     ${subs.length ? `<span class="card-subs${subsDone === subs.length ? ' complete' : ''}" title="Checklist">◎ ${subsDone}/${subs.length}</span>` : ''}
                     ${nChildren ? `<span class="card-subs" title="Sous-tâches (hiérarchie)">↳ ${nChildren}</span>` : ''}
                     ${dueHtml}
