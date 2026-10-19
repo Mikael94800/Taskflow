@@ -3180,17 +3180,20 @@ container.innerHTML = columns.map(col => `
             if (!gristReady || !task || task.parentTask || !task.recurrenceFreq) return;
             const dates = recurrenceDates(task);
             if (!dates.length) return;
+            // Les colonnes Grist de type Date attendent minuit UTC (et non midi local).
+            const recurrenceDateToGrist = (d) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
             const existing = tasks.filter(t => Number(t.parentTask) === Number(task.id) && /^↻ .* \(\d{4}-\d{2}-\d{2}\)$/.test(t.titre || ''));
             const byDate = new Map(existing.map(t => [((t.titre || '').match(/\((\d{4}-\d{2}-\d{2})\)$/) || [])[1], t]));
             const actions = [];
             for (const d of dates) {
                 const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
                 const title = `↻ ${task.titre || 'Tâche récurrente'} (${iso})`;
-                const oneDay = dateToGrist(d);
+                const oneDay = recurrenceDateToGrist(d);
+                // L'occurrence reste une vraie tâche (statuts et suivi habituels), avec début et échéance identiques.
                 const record = pruneTaskRecord({ titre: title, description: task.description || '', type: 'tache', priorite: String(task.priorite || '3'), statut: normalizeStatusValue(task.statut || 'todo'), progression: 0, dateDebut: oneDay, dateEcheance: oneDay, projet: task.projet || null, assignees: toGristRefList(getAssignees(task)), dependDe: [], tags: toGristChoiceList(getTags(task)), estimationH: task.estimationH || null, tempsPasse: null, subtasks: '[]', couleur: task.couleur || null, parentTask: task.id });
                 const old = byDate.get(iso);
                 if (!old) actions.push(['AddRecord','Tasks',null,record]);
-                else if (old.titre !== title || Number(old.dateDebut) !== Number(record.dateDebut) || Number(old.dateEcheance) !== Number(record.dateEcheance)) actions.push(['UpdateRecord','Tasks',old.id,{titre:title,dateDebut:record.dateDebut,dateEcheance:record.dateEcheance,description:record.description}]);
+                else if (old.titre !== title || old.type !== 'tache' || Number(old.dateDebut) !== Number(record.dateDebut) || Number(old.dateEcheance) !== Number(record.dateEcheance)) actions.push(['UpdateRecord','Tasks',old.id,{titre:title,type:'tache',dateDebut:record.dateDebut,dateEcheance:record.dateEcheance,description:record.description}]);
             }
             if (actions.length) {
                 await grist.docApi.applyUserActions(actions);
