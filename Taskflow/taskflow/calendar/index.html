@@ -1553,10 +1553,13 @@
                         if (!expected.has(match[1])) return false;
                         // Une occurrence doit être ponctuelle : début et échéance le même jour.
                         const occ = new Date(match[1] + 'T12:00:00');
-                        const startChild = t.dateDebut ? new Date(t.dateDebut * 1000) : null;
-                        const endChild = t.dateEcheance ? new Date(t.dateEcheance * 1000) : null;
-                        if (startChild && (startChild.getFullYear() !== occ.getFullYear() || startChild.getMonth() !== occ.getMonth() || startChild.getDate() !== occ.getDate())) return false;
-                        if (endChild && (endChild.getFullYear() !== occ.getFullYear() || endChild.getMonth() !== occ.getMonth() || endChild.getDate() !== occ.getDate())) return false;
+                        // Le titre est la référence de l'occurrence. Si une ancienne version a enregistré
+                        // une date avec un décalage horaire, on la normalise pour l'affichage à une journée.
+                        const dayStamp = Math.floor(Date.UTC(occ.getFullYear(), occ.getMonth(), occ.getDate()) / 1000);
+                        if (t.dateDebut !== dayStamp || t.dateEcheance !== dayStamp) {
+                            t.dateDebut = dayStamp;
+                            t.dateEcheance = dayStamp;
+                        }
                         isRecurrenceOccurrence = true;
                     } else if (parent && (parent.isRecurringModel || parent.recurrenceFreq)) return false;
                 }
