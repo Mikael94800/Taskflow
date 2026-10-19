@@ -1511,6 +1511,33 @@
             render();
         }
         
+        // Doit rester cohérent avec le générateur du Kanban : occurrence ponctuelle,
+        // report du samedi/dimanche au lundi, sans traitement particulier des jours fériés.
+        function expectedRecurrenceDateKeys(parent) {
+            const freq = parent?.recurrenceFreq;
+            if (!freq || !parent.recurrenceStart || !parent.recurrenceEnd) return new Set();
+            const start = new Date(parent.recurrenceStart * 1000);
+            const end = new Date(parent.recurrenceEnd * 1000);
+            let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12);
+            const last = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 12);
+            if (cursor > last) return new Set();
+            const keys = new Set();
+            for (let guard = 0; cursor <= last && guard < 500; guard++) {
+                const occ = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12);
+                if (occ.getDay() === 6) occ.setDate(occ.getDate() + 2);
+                else if (occ.getDay() === 0) occ.setDate(occ.getDate() + 1);
+                keys.add(`${occ.getFullYear()}-${String(occ.getMonth()+1).padStart(2,'0')}-${String(occ.getDate()).padStart(2,'0')}`);
+                if (freq === 'Hebdomadaire') cursor.setDate(cursor.getDate() + 7);
+                else if (freq === 'Mensuelle') {
+                    const day = start.getDate(); const next = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1, 12);
+                    next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth()+1, 0).getDate())); cursor = next;
+                } else if (freq === 'Annuelle') {
+                    const month = start.getMonth(), day = start.getDate(); const next = new Date(cursor.getFullYear()+1, month, 1, 12);
+                    next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth()+1, 0).getDate())); cursor = next;
+                } else return new Set();
+            }
+            return keys;
+        }
         function getFilteredTasks() {
             return tasks.filter(t => {
                 // Les modèles récurrents ne s'affichent pas dans le calendrier : seules leurs occurrences (sous-tâches) sont visibles.
@@ -1520,17 +1547,16 @@
                     const parent = tasks.find(x => Number(x.id) === Number(t.parentTask));
                     const match = (t.titre || '').match(/^↻ .* \((\d{4}-\d{2}-\d{2})\)$/);
                     if (match) {
-                        // Une occurrence générée est masquée si la récurrence a été désactivée ou si sa date n'est plus dans le calendrier prévu.
+                        // N'afficher que les occurrences réellement prévues par la règle du parent.
                         if (!parent || !(parent.isRecurringModel || parent.recurrenceFreq)) return false;
-                        const start = parent.recurrenceStart ? new Date(parent.recurrenceStart * 1000) : null;
-                        const end = parent.recurrenceEnd ? new Date(parent.recurrenceEnd * 1000) : null;
+                        const expected = expectedRecurrenceDateKeys(parent);
+                        if (!expected.has(match[1])) return false;
+                        // Une occurrence doit être ponctuelle : début et échéance le même jour.
                         const occ = new Date(match[1] + 'T12:00:00');
-                        if (!start || !end || occ < new Date(start.getFullYear(),start.getMonth(),start.getDate()) || occ > new Date(end.getFullYear(),end.getMonth(),end.getDate())) return false;
-                        const freq = parent.recurrenceFreq;
-                        if (freq === 'Hebdomadaire') { const days = Math.round((occ - new Date(start.getFullYear(),start.getMonth(),start.getDate())) / 86400000); if (days < 0 || days % 7 !== 0) return false; }
-                        else if (freq === 'Mensuelle') { if (occ.getDate() !== start.getDate() && occ.getDate() !== new Date(occ.getFullYear(),occ.getMonth()+1,0).getDate()) return false; }
-                        else if (freq === 'Annuelle') { if (occ.getMonth() !== start.getMonth() || (occ.getDate() !== start.getDate() && occ.getDate() !== new Date(occ.getFullYear(),occ.getMonth()+1,0).getDate())) return false; }
-                        else return false;
+                        const startChild = t.dateDebut ? new Date(t.dateDebut * 1000) : null;
+                        const endChild = t.dateEcheance ? new Date(t.dateEcheance * 1000) : null;
+                        if (startChild && (startChild.getFullYear() !== occ.getFullYear() || startChild.getMonth() !== occ.getMonth() || startChild.getDate() !== occ.getDate())) return false;
+                        if (endChild && (endChild.getFullYear() !== occ.getFullYear() || endChild.getMonth() !== occ.getMonth() || endChild.getDate() !== occ.getDate())) return false;
                         isRecurrenceOccurrence = true;
                     } else if (parent && (parent.isRecurringModel || parent.recurrenceFreq)) return false;
                 }
